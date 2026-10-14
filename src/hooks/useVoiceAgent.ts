@@ -6,10 +6,11 @@ import { AgentState, TranscriptMessage, CallSummaryOutcome } from '@/types';
 interface UseVoiceAgentProps {
   apiKey?: string;
   provider?: 'groq' | 'openai';
+  customerName?: string;
   onStateChange?: (state: AgentState) => void;
 }
 
-export function useVoiceAgent({ apiKey, provider = 'groq', onStateChange }: UseVoiceAgentProps = {}) {
+export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onStateChange }: UseVoiceAgentProps = {}) {
   const [state, setState] = useState<AgentState>('idle');
   const [transcript, setTranscript] = useState<TranscriptMessage[]>([]);
   const [interimText, setInterimText] = useState<string>('');
@@ -414,7 +415,10 @@ export function useVoiceAgent({ apiKey, provider = 'groq', onStateChange }: UseV
 
     await setupAudioVisualizer();
 
-    const greetingText = "Namaste! I'm Aria from Aura Skincare. How can I help you today?";
+    const firstName = customerName ? customerName.split(' ')[0] : '';
+    const greetingText = firstName
+      ? `Namaste ${firstName}! I'm Aria from Aura Skincare. How can I help you today?`
+      : "Namaste! I'm Aria from Aura Skincare. How can I help you today?";
     const initialMsg: TranscriptMessage = {
       id: `agent-welcome-${Date.now()}`,
       sender: 'agent',

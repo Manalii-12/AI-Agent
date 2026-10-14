@@ -1,151 +1,96 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useVoiceAgent } from '@/hooks/useVoiceAgent';
-import { Header } from '@/components/Header';
-import { VoiceVisualizer } from '@/components/VoiceVisualizer';
-import { TestOrdersPanel } from '@/components/TestOrdersPanel';
-import { TranscriptFeed } from '@/components/TranscriptFeed';
-import { PostCallSummaryModal } from '@/components/PostCallSummaryModal';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { CartProvider, useCart } from '@/context/CartContext';
+import { Navbar } from '@/components/Navbar';
+import { BrandOverviewSection } from '@/components/BrandOverviewSection';
+import { BrandPoliciesSection } from '@/components/BrandPoliciesSection';
+import { ProductCatalogSection } from '@/components/ProductCatalogSection';
+import { VoiceAgentSection } from '@/components/VoiceAgentSection';
+import { AuthModal } from '@/components/AuthModal';
+import { CartDrawer } from '@/components/CartDrawer';
+import { CheckoutModal } from '@/components/CheckoutModal';
 import { SettingsModal } from '@/components/SettingsModal';
-import { BrandPoliciesModal } from '@/components/BrandPoliciesModal';
-import { FileText, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Order } from '@/types';
+import { Settings } from 'lucide-react';
 
-export default function Home() {
+function StorefrontContent() {
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [apiKey, setApiKey] = useState<string>('');
   const [provider, setProvider] = useState<'groq' | 'openai'>('groq');
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isPoliciesOpen, setIsPoliciesOpen] = useState(false);
-  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
 
-  const {
-    state,
-    isCallActive,
-    transcript,
-    interimText,
-    summary,
-    isSummaryLoading,
-    selectedVoice,
-    setSelectedVoice,
-    availableVoices,
-    audioLevel,
-    startCall,
-    endCall,
-    interruptAgent,
-    sendManualText,
-  } = useVoiceAgent({
-    apiKey,
-    provider,
-  });
+  const { user } = useAuth();
 
-  // Automatically open summary modal when call ends and summary is generated
-  const handleEndCall = async () => {
-    await endCall();
-    setIsSummaryModalOpen(true);
-  };
-
-  const handleSelectPrompt = (prompt: string) => {
-    if (!isCallActive) {
-      // If call is not started yet, automatically start call and send prompt
-      startCall().then(() => {
-        setTimeout(() => {
-          sendManualText(prompt);
-        }, 1200);
-      });
-    } else {
-      sendManualText(prompt);
-    }
+  const handleOrderSuccess = (order: Order) => {
+    console.log('Order successfully placed:', order);
   };
 
   return (
-    <main className="min-h-screen flex flex-col bg-gradient-to-b from-[#fdf8f6] via-[#f9f2ef] to-[#f4ebe6] text-stone-900 selection:bg-aura-300">
-      {/* Top Navigation */}
-      <Header
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenPolicies={() => setIsPoliciesOpen(true)}
-        isCallActive={isCallActive}
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#fdf8f6] via-[#f9f2ef] to-[#f4ebe6] text-stone-900 selection:bg-aura-300">
+      {/* Top Navbar */}
+      <Navbar
+        onOpenAuth={() => setIsAuthOpen(true)}
+        onOpenCart={() => setIsCartOpen(true)}
       />
 
       {/* Main Container */}
-      <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-6">
-        {/* Banner / Assessment Context */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white/70 border border-aura-200/60 shadow-xs backdrop-blur-xs">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-aura-100 text-aura-800">
-              <Sparkles className="w-4 h-4 text-aura-700" />
-            </div>
-            <div>
-              <h1 className="font-semibold text-sm text-stone-900">
-                Aura Skincare AI Voice Customer Support (Aria)
-              </h1>
-              <p className="text-xs text-stone-600">
-                Voice interaction, brand policy enforcement, live tool calling, and post-call structured summary.
-              </p>
-            </div>
-          </div>
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-8 pb-16">
+        {/* 1. Public Brand Overview Section */}
+        <BrandOverviewSection />
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            {summary && (
-              <button
-                onClick={() => setIsSummaryModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-aura-800 text-white hover:bg-aura-900 text-xs font-medium shadow-sm transition"
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>View Call Summary & JSON</span>
-              </button>
-            )}
-            <button
-              onClick={() => setIsPoliciesOpen(true)}
-              className="text-xs text-aura-800 hover:text-aura-950 font-medium underline underline-offset-4 px-2"
-            >
-              Brand Guardrails
-            </button>
-          </div>
-        </div>
+        {/* 2. Public Skincare Product Catalog (Add to Cart) */}
+        <ProductCatalogSection onOpenCart={() => setIsCartOpen(true)} />
 
-        {/* Core Layout Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column: Voice Visualizer & Helper Card (7 cols) */}
-          <div className="lg:col-span-7 flex flex-col gap-6">
-            {/* Visualizer & Call Controls */}
-            <VoiceVisualizer
-              state={state}
-              isCallActive={isCallActive}
-              audioLevel={audioLevel}
-              onStartCall={startCall}
-              onEndCall={handleEndCall}
-              onInterrupt={interruptAgent}
-            />
+        {/* 3. Public Brand Policies (Shipping, Return, Cancellation, COD) */}
+        <BrandPoliciesSection />
 
-            {/* Test Orders Helper Card (Mandated by Section 2.E) */}
-            <TestOrdersPanel
-              onSelectPrompt={handleSelectPrompt}
-              isCallActive={isCallActive}
-            />
-          </div>
+        {/* 4. Voice Assistant Section (Aria) - Requires Sign In */}
+        <VoiceAgentSection
+          onOpenAuth={() => setIsAuthOpen(true)}
+          apiKey={apiKey}
+          provider={provider}
+        />
+      </main>
 
-          {/* Right Column: Live Conversation Transcript (5 cols) */}
-          <div className="lg:col-span-5 flex flex-col h-[640px] lg:h-[720px]">
-            <TranscriptFeed
-              transcript={transcript}
-              interimText={interimText}
-              isCallActive={isCallActive}
-              onSendManualText={sendManualText}
-            />
-          </div>
-        </div>
+      {/* Floating Settings Button for Evaluator LLM API Key config */}
+      <div className="fixed bottom-4 right-4 z-30">
+        <button
+          onClick={() => setIsSettingsOpen(true)}
+          className="flex items-center gap-2 p-3 rounded-2xl bg-white/90 hover:bg-white text-stone-700 border border-stone-200 shadow-lg text-xs font-semibold backdrop-blur-md transition hover:scale-105"
+          title="Configure Cloud LLM or Speech Synthesis"
+        >
+          <Settings className="w-4 h-4 text-aura-800" />
+          <span className="hidden sm:inline">Settings</span>
+        </button>
       </div>
 
-      {/* Post-Call Summary Modal (Mandated by Section 2.D) */}
-      <PostCallSummaryModal
-        summary={summary}
-        transcript={transcript}
-        isLoading={isSummaryLoading}
-        isOpen={isSummaryModalOpen}
-        onClose={() => setIsSummaryModalOpen(false)}
+      {/* Modals & Drawers */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onSuccess={() => {
+          setIsAuthOpen(false);
+          const el = document.getElementById('voice-agent-section');
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }}
       />
 
-      {/* Settings Modal */}
+      <CartDrawer
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        onProceedToCheckout={() => setIsCheckoutOpen(true)}
+      />
+
+      <CheckoutModal
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        onOrderSuccess={handleOrderSuccess}
+      />
+
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
@@ -153,21 +98,28 @@ export default function Home() {
         setApiKey={setApiKey}
         provider={provider}
         setProvider={setProvider}
-        selectedVoice={selectedVoice}
-        setSelectedVoice={setSelectedVoice}
-        availableVoices={availableVoices}
-      />
-
-      {/* Brand Policies & Knowledge Base Modal */}
-      <BrandPoliciesModal
-        isOpen={isPoliciesOpen}
-        onClose={() => setIsPoliciesOpen(false)}
+        selectedVoice={null}
+        setSelectedVoice={() => {}}
+        availableVoices={[]}
       />
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-aura-200/60 py-4 px-6 text-center text-xs text-stone-500 bg-white/40">
-        <p>Aura Skincare AI Voice CX Agent • Built for DataStraw Hiring Assessment</p>
+      <footer className="mt-auto border-t border-aura-200/60 py-6 px-6 text-center text-xs text-stone-500 bg-white/40">
+        <p className="font-semibold text-aura-900">Aura Skincare • AI Voice Customer Support</p>
+        <p className="text-[11px] text-stone-400 mt-1">
+          Hiring Assignment for DataStraw • Built with Next.js 14, Web Speech API, and Tool Calling
+        </p>
       </footer>
-    </main>
+    </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <AuthProvider>
+      <CartProvider>
+        <StorefrontContent />
+      </CartProvider>
+    </AuthProvider>
   );
 }

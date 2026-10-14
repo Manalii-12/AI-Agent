@@ -35,7 +35,7 @@ export const INITIAL_ORDERS: Record<string, Order> = {
   },
 };
 
-// In-memory store that can be reset or updated during session (e.g., cancelling an order)
+// In-memory store that can be reset or updated during session (e.g., cancelling an order or placing a new order)
 let currentOrders: Record<string, Order> = { ...INITIAL_ORDERS };
 
 export function getOrder(orderId: string): Order | null {
@@ -45,6 +45,13 @@ export function getOrder(orderId: string): Order | null {
 
 export function getAllOrders(): Order[] {
   return Object.values(currentOrders);
+}
+
+export function getCustomerOrders(customerName: string): Order[] {
+  const cleanName = customerName.toLowerCase().trim();
+  return Object.values(currentOrders).filter(
+    (o) => o.customer.toLowerCase().includes(cleanName) || cleanName.includes(o.customer.toLowerCase())
+  );
 }
 
 export function updateOrderStatus(orderId: string, status: Order['status'], newNote?: string): boolean {
@@ -60,6 +67,30 @@ export function updateOrderStatus(orderId: string, status: Order['status'], newN
   return false;
 }
 
+let orderCounter = 104;
+
+export function createOrder(params: {
+  customer: string;
+  product: string;
+  value: number;
+  paymentMethod: 'COD' | 'ONLINE';
+}): Order {
+  const newId = `ORD-${orderCounter++}`;
+  const newOrder: Order = {
+    orderId: newId,
+    customer: params.customer,
+    product: params.product,
+    value: params.value,
+    status: 'Processing',
+    notes: `Placed just now via ${params.paymentMethod}. Eligible for cancellation while Processing.`,
+    orderPlacedHoursAgo: 0,
+  };
+
+  currentOrders[newId] = newOrder;
+  return newOrder;
+}
+
 export function resetMockOrders(): void {
   currentOrders = JSON.parse(JSON.stringify(INITIAL_ORDERS));
+  orderCounter = 104;
 }

@@ -120,6 +120,25 @@ export const TestOrdersPanel: React.FC<TestOrdersPanelProps> = ({ onSelectPrompt
                     <CornerDownRight className="w-3 h-3 text-emerald-500 opacity-60 group-hover:opacity-100 ml-1 shrink-0" />
                   </button>
                 )}
+
+                {order.orderId !== 'ORD-101' && order.orderId !== 'ORD-102' && order.orderId !== 'ORD-103' && (
+                  <>
+                    <button
+                      onClick={() => handleChipClick(`Where is my order ${order.orderId}?`)}
+                      className="text-left text-[11px] px-2 py-1 rounded bg-white hover:bg-aura-100/60 text-aura-900 border border-stone-200 transition flex items-center justify-between group"
+                    >
+                      <span className="truncate">&quot;Where is {order.orderId}?&quot;</span>
+                      <CornerDownRight className="w-3 h-3 text-aura-500 opacity-60 group-hover:opacity-100 ml-1 shrink-0" />
+                    </button>
+                    <button
+                      onClick={() => handleChipClick(`Can I cancel order ${order.orderId}?`)}
+                      className="text-left text-[11px] px-2 py-1 rounded bg-white hover:bg-amber-50 text-amber-900 border border-stone-200 transition flex items-center justify-between group"
+                    >
+                      <span className="truncate">&quot;Cancel {order.orderId}&quot;</span>
+                      <CornerDownRight className="w-3 h-3 text-amber-500 opacity-60 group-hover:opacity-100 ml-1 shrink-0" />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           );
