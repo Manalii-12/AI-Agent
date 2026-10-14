@@ -1,4 +1,5 @@
 import { getOrder, updateOrderStatus, getAllOrders } from '@/data/mockOrders';
+import { findProductByVoice } from '@/data/products';
 
 export interface ToolResult {
   success: boolean;
@@ -180,6 +181,52 @@ export function check_return_eligibility(order_id: string, is_opened: boolean = 
     success: true,
     message: `Order ${normalizedId} is within the 7-day return window. Since the product is unopened in original packaging, you are eligible for a return. Would you like me to initiate the pickup process?`,
     data: order,
+  };
+}
+
+/**
+ * Tool: add_to_cart_tool(spokenProductName, isHinglish)
+ */
+export function add_to_cart_tool(spokenProductName: string, isHinglish: boolean = false): ToolResult {
+  const prod = findProductByVoice(spokenProductName);
+  if (!prod) {
+    return {
+      success: false,
+      message: isHinglish
+        ? "Maaf kijiye, mujhe yeh product nahi mila. Aap Vitamin C Serum, Sunscreen SPF 50, Green Tea Face Wash, Night Cream ya Rose Mist bol sakte hain."
+        : "I couldn't identify which product you'd like to add. We offer our Vitamin C Serum, Hydrating Sunscreen SPF 50, Green Tea Face Wash, Night Cream, or Rose Water Mist.",
+    };
+  }
+
+  return {
+    success: true,
+    message: isHinglish
+      ? `Haanji! Maine ${prod.name} (₹${prod.price}) aapke cart mein add kar diya hai.`
+      : `I've added the ${prod.name} (₹${prod.price}) to your cart!`,
+    data: { action: 'ADD_TO_CART', product: prod },
+  };
+}
+
+/**
+ * Tool: reorder_item_tool(spokenProductName, isHinglish)
+ */
+export function reorder_item_tool(spokenProductName: string, isHinglish: boolean = false): ToolResult {
+  const prod = findProductByVoice(spokenProductName);
+  if (!prod) {
+    return {
+      success: false,
+      message: isHinglish
+        ? "Aapko kaunsa item re-order karna hai? Jaise ki Sunscreen ya Vitamin C serum?"
+        : "Which item would you like to re-order? For example, your Hydrating Sunscreen or Vitamin C Serum?",
+    };
+  }
+
+  return {
+    success: true,
+    message: isHinglish
+      ? `Bilkul! Maine ${prod.name} aapke cart mein re-order ke liye add kar diya hai. Kya aap Cash on Delivery se place karna chahenge?`
+      : `Certainly! I have added ${prod.name} (₹${prod.price}) to your bag for re-ordering. Would you like me to place it with Cash on Delivery?`,
+    data: { action: 'REORDER_ITEM', product: prod },
   };
 }
 

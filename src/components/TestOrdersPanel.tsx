@@ -205,6 +205,32 @@ export const TestOrdersPanel: React.FC<TestOrdersPanelProps> = ({ onSelectPrompt
         </span>
         <div className="flex flex-wrap gap-1.5">
           <button
+            onClick={() => handleChipClick("Mera ORD-101 abhi tak aaya nahi, kab tak aayega?")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 transition cursor-pointer font-medium"
+            title="Native Hinglish Tracking test"
+          >
+            🇮🇳 &quot;Mera ORD-101 kab tak aayega?&quot;
+          </button>
+          <button
+            onClick={() => handleChipClick("Add the SPF 50 Sunscreen to my cart")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 transition cursor-pointer font-medium"
+            title="Voice Cart management test"
+          >
+            🛍️ &quot;Add the SPF 50 Sunscreen to my cart&quot;
+          </button>
+          <button
+            onClick={() => handleChipClick("What's in my bag right now?")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 transition cursor-pointer font-medium"
+          >
+            👜 &quot;What&apos;s in my bag right now?&quot;
+          </button>
+          <button
+            onClick={() => handleChipClick("Reorder my sunscreen")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 transition cursor-pointer font-medium"
+          >
+            🔄 &quot;Reorder my sunscreen&quot;
+          </button>
+          <button
             onClick={() => handleChipClick("What is your return policy for opened items?")}
             className="text-[10px] px-2.5 py-1 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer"
           >

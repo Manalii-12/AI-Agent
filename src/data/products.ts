@@ -91,3 +91,25 @@ export const PRODUCTS: Product[] = [
     imageColor: 'from-pink-200 to-rose-300',
   },
 ];
+
+export function findProductByVoice(spokenText: string): Product | null {
+  const query = spokenText.toLowerCase();
+
+  if (query.includes('sunscreen') || query.includes('spf') || query.includes('sun screen')) {
+    return PRODUCTS.find((p) => p.id === 'PROD-002') || null;
+  }
+  if (query.includes('serum') || query.includes('vitamin c') || query.includes('vit c')) {
+    return PRODUCTS.find((p) => p.id === 'PROD-001') || null;
+  }
+  if (query.includes('face wash') || query.includes('facewash') || query.includes('green tea') || query.includes('cleanser')) {
+    return PRODUCTS.find((p) => p.id === 'PROD-003') || null;
+  }
+  if (query.includes('night cream') || query.includes('kumkumadi') || query.includes('cream')) {
+    return PRODUCTS.find((p) => p.id === 'PROD-004') || null;
+  }
+  if (query.includes('rose') || query.includes('mist') || query.includes('gulab') || query.includes('kannauj')) {
+    return PRODUCTS.find((p) => p.id === 'PROD-005') || null;
+  }
+
+  return null;
+}

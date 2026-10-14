@@ -37,7 +37,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const STANDARD_SHIPPING_FEE = 50;
   const COD_MAX_LIMIT = 2500;
 
-  // Load cart from localStorage
+  // Load cart from localStorage and listen to voice assistant cart additions
   useEffect(() => {
     try {
       const stored = localStorage.getItem('aura_cart');
@@ -45,6 +45,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setItems(JSON.parse(stored));
       }
     } catch (e) {}
+
+    const handleVoiceCartAdd = (e: any) => {
+      const product = e.detail?.product;
+      if (product) {
+        addToCart(product);
+      }
+    };
+
+    window.addEventListener('aura:voice_cart_add', handleVoiceCartAdd);
+    return () => window.removeEventListener('aura:voice_cart_add', handleVoiceCartAdd);
   }, []);
 
   const saveCart = (newItems: CartItem[]) => {

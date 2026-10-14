@@ -289,6 +289,17 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
 
         if (data.toolCalled) {
           setCurrentToolCall(data.toolCalled);
+          if (
+            (data.toolCalled.name === 'add_to_cart' || data.toolCalled.name === 'reorder_item') &&
+            data.toolCalled.result?.data?.product &&
+            typeof window !== 'undefined'
+          ) {
+            window.dispatchEvent(
+              new CustomEvent('aura:voice_cart_add', {
+                detail: { product: data.toolCalled.result.data.product },
+              })
+            );
+          }
         }
 
         const agentMsg: TranscriptMessage = {
