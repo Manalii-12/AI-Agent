@@ -25,23 +25,31 @@ export function useVoiceAgent({ apiKey, provider = 'groq', onStateChange }: UseV
   const synthRef = useRef<SpeechSynthesis | null>(null);
   const isSpeakingRef = useRef<boolean>(false);
   const stateRef = useRef<AgentState>('idle');
+  const isCallActiveRef = useRef<boolean>(false);
   const transcriptRef = useRef<TranscriptMessage[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const interimBufferRef = useRef<string>('');
 
-  // Synchronize state ref
+  // Synchronize state and call active refs
   useEffect(() => {
     stateRef.current = state;
     if (onStateChange) onStateChange(state);
   }, [state, onStateChange]);
 
   useEffect(() => {
+    isCallActiveRef.current = isCallActive;
+  }, [isCallActive]);
+
+  useEffect(() => {
     transcriptRef.current = transcript;
   }, [transcript]);
 
-  // Load browser TTS voices and prioritize Indian English
+  // Load browser TTS voices prioritizing Indian English
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -50,12 +58,14 @@ export function useVoiceAgent({ apiKey, provider = 'groq', onStateChange }: UseV
     const updateVoices = () => {
       if (!synthRef.current) return;
       const voices = synthRef.current.getVoices();
+      if (voices.length === 0) return;
       setAvailableVoices(voices);
 
       // Prioritize Indian English voices
       const indianVoice = voices.find(
         (v) =>
-          (v.lang.toLowerCase().includes('en-in') || v.lang.toLowerCase().includes('hi-in')) ||
+          v.lang.toLowerCase().includes('en-in') ||
+          v.lang.toLowerCase().includes('hi-in') ||
           v.name.toLowerCase().includes('india') ||
           v.name.toLowerCase().includes('neerja') ||
           v.name.toLowerCase().includes('heera')
@@ -72,7 +82,7 @@ export function useVoiceAgent({ apiKey, provider = 'groq', onStateChange }: UseV
       );
 
       const defaultVoice = indianVoice || femaleVoice || voices.find((v) => v.lang.startsWith('en')) || voices[0];
-      setSelectedVoice(defaultVoice || null);
+      setSelectedVoice((prev) => prev || defaultVoice || null);
     };
 
     updateVoices();
@@ -136,7 +146,26 @@ export function useVoiceAgent({ apiKey, provider = 'groq', onStateChange }: UseV
     setAudioLevel(0);
   };
 
-  // Speak agent message using Web SpeechSynthesis
+  // Safely start Speech Recognition
+  const startRecognitionSafe = useCallback(() => {
+    if (!recognitionRef.current || !isCallActiveRef.current) return;
+    if (isSpeakingRef.current) return; // Prevent mic while speaking to avoid audio loopback
+    try {
+      recognitionRef.current.start();
+    } catch (e: any) {
+      // Ignore if recognition is already started
+    }
+  }, []);
+
+  // Safely stop Speech Recognition
+  const stopRecognitionSafe = useCallback(() => {
+    if (!recognitionRef.current) return;
+    try {
+      recognitionRef.current.stop();
+    } catch (e: any) {}
+  }, []);
+
+  // Speak agent message using Web SpeechSynthesis with Chrome keep-alive & echo prevention
   const speakAgentResponse = useCallback(
     (text: string, onEndCallback?: () => void) => {
       if (!synthRef.current) {
@@ -144,8 +173,18 @@ export function useVoiceAgent({ apiKey, provider = 'groq', onStateChange }: UseV
         return;
       }
 
-      // Cancel any ongoing speech
+      // 1. Temporarily pause recognition to prevent mic from hearing computer speakers
+      stopRecognitionSafe();
+
+      // 2. Clear any pending silence timers
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+
+      // 3. Cancel previous speech and resume (fixes Chrome pause bug)
       synthRef.current.cancel();
+      synthRef.current.resume();
 
       const utterance = new SpeechSynthesisUtterance(text);
       if (selectedVoice) {
@@ -155,6 +194,10 @@ export function useVoiceAgent({ apiKey, provider = 'groq', onStateChange }: UseV
       utterance.rate = 1.0;
       utterance.pitch = 1.05;
 
+      // Keep reference alive so Chrome V8 garbage collector does not destroy it mid-speech
+      activeUtteranceRef.current = utterance;
+      (window as any)._activeUtterance = utterance;
+
       utterance.onstart = () => {
         isSpeakingRef.current = true;
         setState('speaking');
@@ -162,9 +205,15 @@ export function useVoiceAgent({ apiKey, provider = 'groq', onStateChange }: UseV
 
       utterance.onend = () => {
         isSpeakingRef.current = false;
-        if (stateRef.current !== 'idle') {
+        activeUtteranceRef.current = null;
+        if (isCallActiveRef.current) {
           setState('listening');
-          startRecognitionSafe();
+          // Short 200ms grace period after audio stops before resuming mic
+          setTimeout(() => {
+            if (isCallActiveRef.current && !isSpeakingRef.current) {
+              startRecognitionSafe();
+            }
+          }, 200);
         }
         if (onEndCallback) onEndCallback();
       };
@@ -172,7 +221,8 @@ export function useVoiceAgent({ apiKey, provider = 'groq', onStateChange }: UseV
       utterance.onerror = (e) => {
         console.warn('SpeechSynthesis error:', e);
         isSpeakingRef.current = false;
-        if (stateRef.current !== 'idle') {
+        activeUtteranceRef.current = null;
+        if (isCallActiveRef.current) {
           setState('listening');
           startRecognitionSafe();
         }
@@ -181,35 +231,46 @@ export function useVoiceAgent({ apiKey, provider = 'groq', onStateChange }: UseV
 
       synthRef.current.speak(utterance);
     },
-    [selectedVoice]
+    [selectedVoice, startRecognitionSafe, stopRecognitionSafe]
   );
 
-  // Barge-in / Interruption handling: stops agent speaking immediately if user speaks
+  // Barge-in / Interruption handling: stops agent speaking immediately if user interrupts
   const interruptAgent = useCallback(() => {
     if (synthRef.current && (synthRef.current.speaking || isSpeakingRef.current)) {
       synthRef.current.cancel();
       isSpeakingRef.current = false;
+      activeUtteranceRef.current = null;
       setState('listening');
+      startRecognitionSafe();
       console.log('⚡ Barge-in: Agent speech interrupted by user');
     }
-  }, []);
+  }, [startRecognitionSafe]);
 
   // Send message to backend and handle LLM/Tool execution
   const processUserSpeech = useCallback(
     async (spokenText: string) => {
-      if (!spokenText.trim()) return;
+      const cleanText = spokenText.trim();
+      if (!cleanText) return;
+
+      // Clear interim buffers and timers
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+      interimBufferRef.current = '';
+      setInterimText('');
 
       const userMsg: TranscriptMessage = {
         id: `user-${Date.now()}`,
         sender: 'user',
-        text: spokenText.trim(),
+        text: cleanText,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
       };
 
       const updatedTranscript = [...transcriptRef.current, userMsg];
       setTranscript(updatedTranscript);
-      setInterimText('');
       setState('thinking');
+      stopRecognitionSafe();
 
       try {
         const res = await fetch('/api/chat', {
@@ -251,20 +312,10 @@ export function useVoiceAgent({ apiKey, provider = 'groq', onStateChange }: UseV
         speakAgentResponse(errorMsg.text);
       }
     },
-    [apiKey, provider, speakAgentResponse]
+    [apiKey, provider, speakAgentResponse, stopRecognitionSafe]
   );
 
-  // Initialize and safely restart Web Speech Recognition
-  const startRecognitionSafe = useCallback(() => {
-    if (!recognitionRef.current || !isCallActive) return;
-    try {
-      recognitionRef.current.start();
-    } catch (e: any) {
-      // Ignore if recognition is already started
-    }
-  }, [isCallActive]);
-
-  // Set up SpeechRecognition instance
+  // Set up SpeechRecognition instance with silence debounce timer
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -281,13 +332,15 @@ export function useVoiceAgent({ apiKey, provider = 'groq', onStateChange }: UseV
     recognition.lang = 'en-IN'; // Indian English priority
 
     recognition.onstart = () => {
-      // Only set to listening if we aren't currently speaking or thinking
-      if (stateRef.current !== 'speaking' && stateRef.current !== 'thinking') {
+      if (!isSpeakingRef.current && stateRef.current !== 'thinking') {
         setState('listening');
       }
     };
 
     recognition.onresult = (event: any) => {
+      // If agent is speaking, ignore mic input to prevent speaker-mic echo loop
+      if (isSpeakingRef.current) return;
+
       let finalSpeech = '';
       let interim = '';
 
@@ -300,20 +353,30 @@ export function useVoiceAgent({ apiKey, provider = 'groq', onStateChange }: UseV
         }
       }
 
-      // Barge-in: if user is speaking while agent is speaking, interrupt immediately!
-      if (isSpeakingRef.current && (interim.length > 2 || finalSpeech.length > 0)) {
-        interruptAgent();
-      }
-
-      if (interim) {
-        setInterimText(interim);
-      }
-
       if (finalSpeech.trim()) {
-        try {
-          recognition.stop();
-        } catch (e) {}
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        interimBufferRef.current = '';
+        setInterimText('');
         processUserSpeech(finalSpeech.trim());
+        return;
+      }
+
+      if (interim.trim()) {
+        interimBufferRef.current = interim.trim();
+        setInterimText(interim);
+
+        // SILENCE DEBOUNCE TIMER:
+        // If user says "ORD 102" and stops speaking without an explicit isFinal event,
+        // automatically commit the interim speech after 900ms of silence!
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = setTimeout(() => {
+          if (interimBufferRef.current && !isSpeakingRef.current && stateRef.current !== 'thinking') {
+            const captured = interimBufferRef.current;
+            interimBufferRef.current = '';
+            setInterimText('');
+            processUserSpeech(captured);
+          }
+        }, 900);
       }
     };
 
@@ -324,8 +387,8 @@ export function useVoiceAgent({ apiKey, provider = 'groq', onStateChange }: UseV
     };
 
     recognition.onend = () => {
-      // Auto-restart if call is still active and agent is not speaking
-      if (isCallActive && !isSpeakingRef.current && stateRef.current !== 'thinking') {
+      // Auto-restart if call is still active and agent is not speaking or thinking
+      if (isCallActiveRef.current && !isSpeakingRef.current && stateRef.current !== 'thinking') {
         startRecognitionSafe();
       }
     };
@@ -333,11 +396,12 @@ export function useVoiceAgent({ apiKey, provider = 'groq', onStateChange }: UseV
     recognitionRef.current = recognition;
 
     return () => {
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       try {
         recognition.stop();
       } catch (e) {}
     };
-  }, [isCallActive, interruptAgent, processUserSpeech, startRecognitionSafe]);
+  }, [processUserSpeech, startRecognitionSafe]);
 
   // Start Call Handler
   const startCall = async () => {
@@ -345,6 +409,7 @@ export function useVoiceAgent({ apiKey, provider = 'groq', onStateChange }: UseV
     setCurrentToolCall(null);
     setTranscript([]);
     setIsCallActive(true);
+    isCallActiveRef.current = true;
     setState('speaking');
 
     await setupAudioVisualizer();
@@ -360,31 +425,29 @@ export function useVoiceAgent({ apiKey, provider = 'groq', onStateChange }: UseV
     setTranscript([initialMsg]);
 
     speakAgentResponse(greetingText, () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.start();
-        } catch (e) {}
-      }
       setState('listening');
+      startRecognitionSafe();
     });
   };
 
   // End Call Handler
   const endCall = async () => {
     setIsCallActive(false);
+    isCallActiveRef.current = false;
     setState('idle');
+
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
 
     if (synthRef.current) {
       synthRef.current.cancel();
     }
     isSpeakingRef.current = false;
+    activeUtteranceRef.current = null;
 
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {}
-    }
-
+    stopRecognitionSafe();
     stopAudioVisualizer();
 
     // Generate Structured Post-Call Summary

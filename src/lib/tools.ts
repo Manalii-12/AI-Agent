@@ -7,15 +7,30 @@ export interface ToolResult {
 }
 
 /**
- * Standardize order ID extraction from voice input (handles "ord 101", "order 101", "ORD-101", etc.)
+ * Standardize order ID extraction from voice input (handles "ord 101", "order 101", "102", "o r d 102", "ORD-102", etc.)
  */
 export function normalizeOrderId(rawInput: string): string {
   if (!rawInput) return '';
-  const match = rawInput.match(/ORD[- ]?(\d+)/i) || rawInput.match(/\b(10[1-9])\b/);
-  if (match) {
-    const num = match[1];
-    return `ORD-${num}`;
+  const cleaned = rawInput.toLowerCase().trim();
+
+  // Pattern 1: Explicit ORD-101, ord 102, ord103, order 101, o r d 102, od 102, etc.
+  const matchExplicit = cleaned.match(/(?:ord|order|o\s*r\s*d|od|ward|audi|audit)[-\s]*([0-9]{3})/i);
+  if (matchExplicit) {
+    return `ORD-${matchExplicit[1]}`;
   }
+
+  // Pattern 2: Standalone sample number like 101, 102, 103, 999
+  const matchNum = cleaned.match(/\b(10[1-9]|999)\b/);
+  if (matchNum) {
+    return `ORD-${matchNum[1]}`;
+  }
+
+  // Pattern 3: Generic ORD-XXX
+  const genericMatch = cleaned.match(/ord[-\s]?([0-9]+)/i);
+  if (genericMatch) {
+    return `ORD-${genericMatch[1]}`;
+  }
+
   return rawInput.trim().toUpperCase();
 }
 
