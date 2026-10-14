@@ -48,10 +48,20 @@ export function getAllOrders(): Order[] {
 }
 
 export function getCustomerOrders(customerName: string): Order[] {
+  if (!customerName) return [];
   const cleanName = customerName.toLowerCase().trim();
-  return Object.values(currentOrders).filter(
-    (o) => o.customer.toLowerCase().includes(cleanName) || cleanName.includes(o.customer.toLowerCase())
-  );
+  const firstName = cleanName.split(' ')[0];
+
+  return Object.values(currentOrders).filter((o) => {
+    const oName = o.customer.toLowerCase().trim();
+    const oFirstName = oName.split(' ')[0];
+    return (
+      oName === cleanName ||
+      oName.includes(cleanName) ||
+      cleanName.includes(oName) ||
+      (firstName.length > 2 && oFirstName === firstName)
+    );
+  });
 }
 
 export function updateOrderStatus(orderId: string, status: Order['status'], newNote?: string): boolean {

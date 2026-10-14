@@ -10,6 +10,7 @@ export interface Product {
   reviewsCount: number;
   badge?: string;
   stock: number;
+  image: string;
   imageColor: string;
 }
 
@@ -26,6 +27,7 @@ export const PRODUCTS: Product[] = [
     reviewsCount: 342,
     badge: 'Bestseller',
     stock: 45,
+    image: '/images/products/serum.jpg',
     imageColor: 'from-amber-200 to-orange-300',
   },
   {
@@ -40,6 +42,7 @@ export const PRODUCTS: Product[] = [
     reviewsCount: 512,
     badge: 'Award Winner',
     stock: 60,
+    image: '/images/products/sunscreen.jpg',
     imageColor: 'from-sky-200 to-blue-300',
   },
   {
@@ -54,6 +57,7 @@ export const PRODUCTS: Product[] = [
     reviewsCount: 289,
     badge: 'Dual Kit',
     stock: 35,
+    image: '/images/products/facewash.jpg',
     imageColor: 'from-emerald-200 to-teal-300',
   },
   {
@@ -68,6 +72,7 @@ export const PRODUCTS: Product[] = [
     reviewsCount: 198,
     badge: 'Luxury Ayurvedic',
     stock: 20,
+    image: '/images/products/nightcream.jpg',
     imageColor: 'from-rose-200 to-amber-300',
   },
   {
@@ -82,6 +87,7 @@ export const PRODUCTS: Product[] = [
     reviewsCount: 420,
     badge: '100% Organic',
     stock: 80,
+    image: '/images/products/rosemist.jpg',
     imageColor: 'from-pink-200 to-rose-300',
   },
 ];

@@ -42,66 +42,73 @@ export const ProductCatalogSection: React.FC<ProductCatalogSectionProps> = ({ on
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {PRODUCTS.map((prod) => {
           const isAdded = addedId === prod.id;
           return (
             <div
               key={prod.id}
-              className="rounded-3xl bg-white/90 border border-aura-200/80 p-5 shadow-lg shadow-aura-900/5 backdrop-blur-md flex flex-col justify-between hover:shadow-xl hover:border-aura-300 transition group"
+              className="rounded-3xl bg-white border border-stone-200/90 overflow-hidden shadow-md hover:shadow-xl hover:border-aura-400 transition-all duration-300 flex flex-col justify-between group"
             >
               <div>
-                {/* Visual Header / Avatar Banner */}
-                <div
-                  className={`w-full h-36 rounded-2xl bg-gradient-to-tr ${prod.imageColor} flex items-center justify-center relative overflow-hidden shadow-inner mb-4`}
-                >
-                  <Sparkles className="w-12 h-12 text-white/50 group-hover:scale-110 transition duration-300" />
+                {/* Real Product Photography */}
+                <div className="w-full h-52 relative overflow-hidden bg-stone-100">
+                  <img
+                    src={prod.image}
+                    alt={prod.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60" />
+
                   {prod.badge && (
-                    <span className="absolute top-2.5 left-2.5 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-white/90 text-stone-900 shadow-xs backdrop-blur-xs">
+                    <span className="absolute top-3 left-3 text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/95 text-stone-900 shadow-sm backdrop-blur-xs">
                       {prod.badge}
                     </span>
                   )}
-                  <span className="absolute bottom-2.5 right-2.5 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-stone-900/60 text-white backdrop-blur-xs">
+                  <span className="absolute bottom-3 right-3 text-[10px] font-mono font-semibold px-2.5 py-0.5 rounded-md bg-stone-900/80 text-white backdrop-blur-xs">
                     {prod.size}
                   </span>
                 </div>
 
-                {/* Title & Category */}
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-sage-700 bg-sage-50 px-2 py-0.5 rounded-full">
-                    {prod.category}
-                  </span>
-                  <div className="flex items-center gap-1 text-[11px] text-amber-500 font-bold">
-                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                    <span>{prod.rating}</span>
-                    <span className="text-stone-400 font-normal">({prod.reviewsCount})</span>
-                  </div>
-                </div>
-
-                <h3 className="font-serif font-bold text-sm text-stone-900 line-clamp-1 group-hover:text-aura-800 transition">
-                  {prod.name}
-                </h3>
-                <p className="text-[11px] text-stone-500 mt-1 line-clamp-2 leading-relaxed">
-                  {prod.description}
-                </p>
-
-                {/* Key Ingredients tags */}
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {prod.keyIngredients.slice(0, 3).map((ing, i) => (
-                    <span
-                      key={i}
-                      className="text-[9px] px-2 py-0.5 rounded-md bg-stone-100 text-stone-600 font-medium"
-                    >
-                      {ing}
+                {/* Content */}
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-sage-800 bg-sage-50 border border-sage-200 px-2.5 py-0.5 rounded-full">
+                      {prod.category}
                     </span>
-                  ))}
+                    <div className="flex items-center gap-1 text-[11px] text-amber-500 font-bold">
+                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                      <span>{prod.rating}</span>
+                      <span className="text-stone-400 font-normal">({prod.reviewsCount})</span>
+                    </div>
+                  </div>
+
+                  <h3 className="font-serif font-bold text-sm text-stone-900 line-clamp-1 group-hover:text-aura-800 transition">
+                    {prod.name}
+                  </h3>
+                  <p className="text-[11px] text-stone-500 mt-1 line-clamp-2 leading-relaxed">
+                    {prod.description}
+                  </p>
+
+                  {/* Key Ingredients */}
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {prod.keyIngredients.slice(0, 3).map((ing, i) => (
+                      <span
+                        key={i}
+                        className="text-[9px] px-2 py-0.5 rounded-md bg-stone-100 text-stone-600 font-medium border border-stone-200/60"
+                      >
+                        {ing}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
 
               {/* Price & Add to Cart button */}
-              <div className="mt-5 pt-3 border-t border-stone-100 flex items-center justify-between">
+              <div className="px-5 pb-5 pt-3 border-t border-stone-100 flex items-center justify-between bg-stone-50/40">
                 <div>
-                  <span className="text-[10px] text-stone-400 block">Price</span>
+                  <span className="text-[10px] text-stone-400 block font-medium">Price</span>
                   <span className="font-serif font-bold text-base text-stone-900">
                     ₹{prod.price}
                   </span>
@@ -109,7 +116,7 @@ export const ProductCatalogSection: React.FC<ProductCatalogSectionProps> = ({ on
 
                 <button
                   onClick={() => handleAdd(prod)}
-                  className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-xs shadow-xs transition active:scale-95 ${
+                  className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-xs shadow-xs transition active:scale-95 cursor-pointer ${
                     isAdded
                       ? 'bg-emerald-600 text-white'
                       : 'bg-aura-800 hover:bg-aura-900 text-white'
@@ -123,7 +130,7 @@ export const ProductCatalogSection: React.FC<ProductCatalogSectionProps> = ({ on
                   ) : (
                     <>
                       <ShoppingBag className="w-3.5 h-3.5" />
-                      <span>Add to Cart</span>
+                      <span>Add to Bag</span>
                     </>
                   )}
                 </button>
