@@ -13,7 +13,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased selection:bg-aura-300 selection:text-aura-900">
+      <head>
+        <link rel="stylesheet" href="/output.css" />
+      </head>
+      <body className="antialiased selection:bg-aura-300 selection:text-aura-900 bg-[#fdf8f6] font-sans">
         {children}
       </body>
     </html>
