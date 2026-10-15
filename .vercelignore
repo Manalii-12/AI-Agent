@@ -1,0 +1,4 @@
+# Vercel deployment ignore file
+# Ignore Node.js backend & Render configuration for frontend Next.js builds
+backend/
+render.yaml
