@@ -51,7 +51,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(TEST_USERS[0]);
 
   // Load persisted user session from localStorage
   useEffect(() => {
@@ -59,9 +59,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const stored = localStorage.getItem('aura_current_user');
       if (stored) {
         setUser(JSON.parse(stored));
+      } else {
+        setUser(TEST_USERS[0]);
       }
     } catch (e) {
-      console.warn('Failed to load user from localStorage:', e);
+      setUser(TEST_USERS[0]);
     }
   }, []);
 
