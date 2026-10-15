@@ -9,10 +9,8 @@ interface UseVoiceAgentProps {
   provider?: 'groq' | 'openai';
   customerName?: string;
   onStateChange?: (state: AgentState) => void;
-  selectedVoice?: SpeechSynthesisVoice | null;
-  setSelectedVoice?: (voice: SpeechSynthesisVoice | null) => void;
-  availableVoices?: SpeechSynthesisVoice[];
-  setAvailableVoices?: (voices: SpeechSynthesisVoice[]) => void;
+  selectedVoiceName?: string;
+  onSelectVoiceName?: (name: string) => void;
 }
 
 export function useVoiceAgent({
@@ -20,10 +18,8 @@ export function useVoiceAgent({
   provider = 'groq',
   customerName,
   onStateChange,
-  selectedVoice: propSelectedVoice,
-  setSelectedVoice: propSetSelectedVoice,
-  availableVoices: propAvailableVoices,
-  setAvailableVoices: propSetAvailableVoices,
+  selectedVoiceName,
+  onSelectVoiceName,
 }: UseVoiceAgentProps = {}) {
   const [state, setState] = useState<AgentState>('idle');
   const [transcript, setTranscript] = useState<TranscriptMessage[]>([]);
@@ -34,14 +30,8 @@ export function useVoiceAgent({
   const [isCallActive, setIsCallActive] = useState<boolean>(false);
   const [audioLevel, setAudioLevel] = useState<number>(0);
 
-  // Internal voice state if not supplied via props
-  const [localSelectedVoice, setLocalSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
-  const [localAvailableVoices, setLocalAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-
-  const selectedVoice = propSelectedVoice !== undefined ? propSelectedVoice : localSelectedVoice;
-  const setSelectedVoice = propSetSelectedVoice || setLocalSelectedVoice;
-  const availableVoices = propAvailableVoices !== undefined ? propAvailableVoices : localAvailableVoices;
-  const setAvailableVoices = propSetAvailableVoices || setLocalAvailableVoices;
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
 
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
@@ -72,96 +62,126 @@ export function useVoiceAgent({
     transcriptRef.current = transcript;
   }, [transcript]);
 
-  // Load browser TTS voices with high-clarity English prioritization (excluding pure Hindi voices)
+  // Load browser TTS voices safely with fallback protections against undefined properties
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
 
-    synthRef.current = window.speechSynthesis;
+    const synth = window.speechSynthesis;
+    synthRef.current = synth;
 
     const updateVoices = () => {
-      if (!synthRef.current) return;
-      const allVoices = synthRef.current.getVoices();
-      if (allVoices.length === 0) return;
+      try {
+        const allVoices = synth.getVoices() || [];
+        if (!allVoices || allVoices.length === 0) return;
 
-      // Group English voices first for high pronunciation accuracy
-      const englishVoices = allVoices.filter(
-        (v) => v.lang.toLowerCase().startsWith('en') && !v.lang.toLowerCase().startsWith('hi')
-      );
+        // Filter valid voices
+        const validVoices = allVoices.filter((v) => v && typeof v.name === 'string');
 
-      // Sort voices: English first (Natural/Online at the top), followed by others
-      const sortedVoices = [...allVoices].sort((a, b) => {
-        const aIsEn = a.lang.toLowerCase().startsWith('en');
-        const bIsEn = b.lang.toLowerCase().startsWith('en');
-        const aIsNatural = a.name.toLowerCase().includes('natural') || a.name.toLowerCase().includes('online');
-        const bIsNatural = b.name.toLowerCase().includes('natural') || b.name.toLowerCase().includes('online');
+        // Group English voices first for high pronunciation accuracy (strictly exclude pure Hindi voices)
+        const englishVoices = validVoices.filter((v) => {
+          const lang = (v.lang || '').toLowerCase();
+          return lang.startsWith('en') && !lang.startsWith('hi');
+        });
 
-        if (aIsNatural && !bIsNatural) return -1;
-        if (!aIsNatural && bIsNatural) return 1;
-        if (aIsEn && !bIsEn) return -1;
-        if (!aIsEn && bIsEn) return 1;
-        return a.name.localeCompare(b.name);
-      });
+        // Sort voices safely: Natural English first, then English, then others
+        const sortedVoices = [...validVoices].sort((a, b) => {
+          const aLang = (a.lang || '').toLowerCase();
+          const bLang = (b.lang || '').toLowerCase();
+          const aName = (a.name || '').toLowerCase();
+          const bName = (b.name || '').toLowerCase();
 
-      setAvailableVoices(sortedVoices);
+          const aIsNatural = aName.includes('natural') || aName.includes('online') || aName.includes('neural');
+          const bIsNatural = bName.includes('natural') || bName.includes('online') || bName.includes('neural');
+          if (aIsNatural && !bIsNatural) return -1;
+          if (!aIsNatural && bIsNatural) return 1;
 
-      // 1. Prioritize Natural / Neural English Voices (Edge, Chrome, Mac)
-      const naturalEnglishVoice = englishVoices.find(
-        (v) =>
-          v.name.toLowerCase().includes('natural') ||
-          v.name.toLowerCase().includes('online') ||
-          v.name.toLowerCase().includes('neural')
-      );
+          const aIsEn = aLang.startsWith('en');
+          const bIsEn = bLang.startsWith('en');
+          if (aIsEn && !bIsEn) return -1;
+          if (!aIsEn && bIsEn) return 1;
 
-      // 2. High clarity Indian English voices (strictly English, never hi-IN)
-      const indianEnglishVoice = englishVoices.find(
-        (v) =>
-          (v.lang.toLowerCase().includes('en-in') ||
-            v.name.toLowerCase().includes('india') ||
-            v.name.toLowerCase().includes('neerja')) &&
-          !v.lang.toLowerCase().startsWith('hi')
-      );
+          return (a.name || '').localeCompare(b.name || '');
+        });
 
-      // 3. Clear Google English voices
-      const googleEnglishVoice = englishVoices.find((v) =>
-        v.name.toLowerCase().includes('google')
-      );
+        setAvailableVoices(sortedVoices);
 
-      // 4. Quality standard English voices (Samantha, Zira, Jenny)
-      const standardEnglishVoice = englishVoices.find(
-        (v) =>
-          v.name.toLowerCase().includes('zira') ||
-          v.name.toLowerCase().includes('samantha') ||
-          v.name.toLowerCase().includes('jenny') ||
-          v.name.toLowerCase().includes('female')
-      );
+        // 1. Natural / Neural English Voices
+        const naturalEnglishVoice = englishVoices.find((v) => {
+          const n = (v.name || '').toLowerCase();
+          return n.includes('natural') || n.includes('online') || n.includes('neural');
+        });
 
-      const defaultVoice =
-        naturalEnglishVoice ||
-        indianEnglishVoice ||
-        googleEnglishVoice ||
-        standardEnglishVoice ||
-        englishVoices[0] ||
-        allVoices[0];
+        // 2. High clarity Indian English voices
+        const indianEnglishVoice = englishVoices.find((v) => {
+          const l = (v.lang || '').toLowerCase();
+          const n = (v.name || '').toLowerCase();
+          return (l.includes('en-in') || n.includes('india') || n.includes('neerja')) && !l.startsWith('hi');
+        });
 
-      setSelectedVoice(defaultVoice || null);
+        // 3. Clear Google English voices
+        const googleEnglishVoice = englishVoices.find((v) => (v.name || '').toLowerCase().includes('google'));
+
+        // 4. Standard English female voices
+        const standardEnglishVoice = englishVoices.find((v) => {
+          const n = (v.name || '').toLowerCase();
+          return n.includes('zira') || n.includes('samantha') || n.includes('jenny') || n.includes('female');
+        });
+
+        const defaultVoice =
+          naturalEnglishVoice ||
+          indianEnglishVoice ||
+          googleEnglishVoice ||
+          standardEnglishVoice ||
+          englishVoices[0] ||
+          sortedVoices[0] ||
+          null;
+
+        setSelectedVoice((prev) => {
+          if (selectedVoiceName) {
+            const found = sortedVoices.find((v) => v.name === selectedVoiceName);
+            if (found) return found;
+          }
+          return prev || defaultVoice;
+        });
+
+        if (defaultVoice && !selectedVoiceName && onSelectVoiceName) {
+          onSelectVoiceName(defaultVoice.name);
+        }
+      } catch (err) {
+        console.warn('SpeechSynthesis voice initialization safely handled:', err);
+      }
     };
 
     updateVoices();
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = updateVoices;
+    if (synth.onvoiceschanged !== undefined) {
+      synth.onvoiceschanged = updateVoices;
     }
 
     return () => {
-      if (synthRef.current) synthRef.current.cancel();
+      try {
+        if (synthRef.current) synthRef.current.cancel();
+      } catch (e) {}
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (audioCooldownTimerRef.current) clearTimeout(audioCooldownTimerRef.current);
     };
   }, []);
 
+  // Update selected voice when prop changes
+  useEffect(() => {
+    if (selectedVoiceName && availableVoices.length > 0) {
+      const match = availableVoices.find((v) => v.name === selectedVoiceName);
+      if (match) {
+        setSelectedVoice(match);
+      }
+    }
+  }, [selectedVoiceName, availableVoices]);
+
   // Voice Visualizer for Mic input with Acoustic Echo Cancellation
   const setupAudioVisualizer = async () => {
     try {
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return;
+
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -172,6 +192,8 @@ export function useVoiceAgent({
       micStreamRef.current = stream;
 
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+
       const audioCtx = new AudioCtx();
       audioContextRef.current = audioCtx;
 
@@ -262,12 +284,14 @@ export function useVoiceAgent({
       }
 
       // 3. Cancel previous speech if running, and resume if paused
-      if (synthRef.current.speaking || synthRef.current.pending) {
-        synthRef.current.cancel();
-      }
-      if (synthRef.current.paused) {
-        synthRef.current.resume();
-      }
+      try {
+        if (synthRef.current.speaking || synthRef.current.pending) {
+          synthRef.current.cancel();
+        }
+        if (synthRef.current.paused) {
+          synthRef.current.resume();
+        }
+      } catch (e) {}
 
       // 4. Sanitize text so words like "summer", product IDs, and numbers pronounce accurately
       const cleanSpokenText = cleanTextForSpeech(text);
@@ -275,7 +299,7 @@ export function useVoiceAgent({
 
       if (selectedVoice) {
         utterance.voice = selectedVoice;
-        utterance.lang = selectedVoice.lang;
+        utterance.lang = selectedVoice.lang || 'en-IN';
       } else {
         utterance.lang = 'en-IN';
       }
@@ -284,9 +308,10 @@ export function useVoiceAgent({
       utterance.rate = 0.98;
       utterance.pitch = 1.0;
 
-      // Keep reference alive so Chrome V8 garbage collector does not destroy it mid-speech
       activeUtteranceRef.current = utterance;
-      (window as any)._activeUtterance = utterance;
+      if (typeof window !== 'undefined') {
+        (window as any)._activeUtterance = utterance;
+      }
 
       utterance.onstart = () => {
         isSpeakingRef.current = true;
@@ -319,7 +344,12 @@ export function useVoiceAgent({
         if (onEndCallback) onEndCallback();
       };
 
-      synthRef.current.speak(utterance);
+      try {
+        synthRef.current.speak(utterance);
+      } catch (err) {
+        console.warn('SpeechSynthesis speak failed:', err);
+        if (onEndCallback) onEndCallback();
+      }
     },
     [selectedVoice, startRecognitionSafe, stopRecognitionSafe]
   );
@@ -420,88 +450,93 @@ export function useVoiceAgent({
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    try {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-    if (!SpeechRecognition) {
-      console.warn('SpeechRecognition API is not supported in this browser.');
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = selectedVoice?.lang?.startsWith('en') ? selectedVoice.lang : 'en-IN';
-
-    recognition.onstart = () => {
-      if (!isSpeakingRef.current && stateRef.current !== 'thinking') {
-        setState('listening');
-      }
-    };
-
-    recognition.onresult = (event: any) => {
-      // If agent is speaking or processing, immediately drop mic input to prevent acoustic feedback loop
-      if (isSpeakingRef.current || stateRef.current === 'speaking' || stateRef.current === 'thinking') {
+      if (!SpeechRecognition) {
+        console.warn('SpeechRecognition API is not supported in this browser.');
         return;
       }
 
-      let finalSpeech = '';
-      let interim = '';
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      const lang = selectedVoice?.lang || '';
+      recognition.lang = lang.toLowerCase().startsWith('en') ? lang : 'en-IN';
 
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          finalSpeech += result[0].transcript;
-        } else {
-          interim += result[0].transcript;
+      recognition.onstart = () => {
+        if (!isSpeakingRef.current && stateRef.current !== 'thinking') {
+          setState('listening');
         }
-      }
+      };
 
-      if (finalSpeech.trim()) {
-        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-        interimBufferRef.current = '';
-        setInterimText('');
-        processUserSpeech(finalSpeech.trim());
-        return;
-      }
+      recognition.onresult = (event: any) => {
+        // If agent is speaking or processing, immediately drop mic input to prevent acoustic feedback loop
+        if (isSpeakingRef.current || stateRef.current === 'speaking' || stateRef.current === 'thinking') {
+          return;
+        }
 
-      if (interim.trim()) {
-        interimBufferRef.current = interim.trim();
-        setInterimText(interim);
+        let finalSpeech = '';
+        let interim = '';
 
-        // Responsive 500ms silence timer (reduced from 900ms to eliminate voice lag)
-        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-        silenceTimerRef.current = setTimeout(() => {
-          if (interimBufferRef.current && !isSpeakingRef.current && stateRef.current !== 'thinking') {
-            const captured = interimBufferRef.current;
-            interimBufferRef.current = '';
-            setInterimText('');
-            processUserSpeech(captured);
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            finalSpeech += result[0].transcript;
+          } else {
+            interim += result[0].transcript;
           }
-        }, 500);
-      }
-    };
+        }
 
-    recognition.onerror = (event: any) => {
-      if (event.error !== 'no-speech' && event.error !== 'aborted') {
-        console.warn('Speech recognition error event:', event.error);
-      }
-    };
+        if (finalSpeech.trim()) {
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+          interimBufferRef.current = '';
+          setInterimText('');
+          processUserSpeech(finalSpeech.trim());
+          return;
+        }
 
-    recognition.onend = () => {
-      // Auto-restart only if call is active and agent is actively in listening state
-      if (isCallActiveRef.current && !isSpeakingRef.current && stateRef.current === 'listening') {
-        startRecognitionSafe();
-      }
-    };
+        if (interim.trim()) {
+          interimBufferRef.current = interim.trim();
+          setInterimText(interim);
 
-    recognitionRef.current = recognition;
+          // Responsive 500ms silence timer (reduced from 900ms to eliminate voice lag)
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = setTimeout(() => {
+            if (interimBufferRef.current && !isSpeakingRef.current && stateRef.current !== 'thinking') {
+              const captured = interimBufferRef.current;
+              interimBufferRef.current = '';
+              setInterimText('');
+              processUserSpeech(captured);
+            }
+          }, 500);
+        }
+      };
 
-    return () => {
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      try {
-        recognition.abort();
-      } catch (e) {}
-    };
+      recognition.onerror = (event: any) => {
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+          console.warn('Speech recognition error event:', event.error);
+        }
+      };
+
+      recognition.onend = () => {
+        // Auto-restart only if call is active and agent is actively in listening state
+        if (isCallActiveRef.current && !isSpeakingRef.current && stateRef.current === 'listening') {
+          startRecognitionSafe();
+        }
+      };
+
+      recognitionRef.current = recognition;
+
+      return () => {
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        try {
+          recognition.abort();
+        } catch (e) {}
+      };
+    } catch (e) {
+      console.warn('SpeechRecognition setup error safely caught:', e);
+    }
   }, [processUserSpeech, startRecognitionSafe, selectedVoice]);
 
   // Start Call Handler
@@ -549,9 +584,11 @@ export function useVoiceAgent({
       audioCooldownTimerRef.current = null;
     }
 
-    if (synthRef.current) {
-      synthRef.current.cancel();
-    }
+    try {
+      if (synthRef.current) {
+        synthRef.current.cancel();
+      }
+    } catch (e) {}
     isSpeakingRef.current = false;
     activeUtteranceRef.current = null;
 

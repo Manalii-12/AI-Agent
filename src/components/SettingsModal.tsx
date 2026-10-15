@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X, Key, Mic, RotateCcw, Volume2, Cpu, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Key, RotateCcw, Volume2, Cpu, Check } from 'lucide-react';
 import { resetMockOrders } from '@/data/mockOrders';
 
 interface SettingsModalProps {
@@ -11,9 +11,8 @@ interface SettingsModalProps {
   setApiKey: (key: string) => void;
   provider: 'groq' | 'openai';
   setProvider: (provider: 'groq' | 'openai') => void;
-  selectedVoice: SpeechSynthesisVoice | null;
-  setSelectedVoice: (voice: SpeechSynthesisVoice | null) => void;
-  availableVoices: SpeechSynthesisVoice[];
+  selectedVoiceName?: string;
+  onSelectVoiceName?: (name: string) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -23,32 +22,87 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   setApiKey,
   provider,
   setProvider,
-  selectedVoice,
-  setSelectedVoice,
-  availableVoices,
+  selectedVoiceName = '',
+  onSelectVoiceName,
 }) => {
   const [tempKey, setTempKey] = useState(apiKey);
   const [resetMessage, setResetMessage] = useState(false);
   const [isPlayingTestVoice, setIsPlayingTestVoice] = useState(false);
+  const [voices, setVoices] = useState<{ name: string; lang: string }[]>([]);
+
+  // Load voices safely when modal opens
+  useEffect(() => {
+    if (!isOpen || typeof window === 'undefined' || !window.speechSynthesis) return;
+
+    const loadVoices = () => {
+      try {
+        const rawVoices = window.speechSynthesis.getVoices() || [];
+        const valid = rawVoices
+          .filter((v) => v && typeof v.name === 'string')
+          .map((v) => ({
+            name: v.name || '',
+            lang: v.lang || '',
+          }));
+
+        valid.sort((a, b) => {
+          const aLang = (a.lang || '').toLowerCase();
+          const bLang = (b.lang || '').toLowerCase();
+          const aName = (a.name || '').toLowerCase();
+          const bName = (b.name || '').toLowerCase();
+
+          const aIsNatural = aName.includes('natural') || aName.includes('online') || aName.includes('neural');
+          const bIsNatural = bName.includes('natural') || bName.includes('online') || bName.includes('neural');
+          if (aIsNatural && !bIsNatural) return -1;
+          if (!aIsNatural && bIsNatural) return 1;
+
+          const aIsEn = aLang.startsWith('en');
+          const bIsEn = bLang.startsWith('en');
+          if (aIsEn && !bIsEn) return -1;
+          if (!aIsEn && bIsEn) return 1;
+
+          return aName.localeCompare(bName);
+        });
+
+        setVoices(valid);
+      } catch (e) {
+        console.warn('Failed to load voices in SettingsModal:', e);
+      }
+    };
+
+    loadVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleTestVoice = () => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.resume();
-    const testText = "Aura Skincare provides natural organic protection for bright summer days.";
-    const utterance = new SpeechSynthesisUtterance(testText);
-    if (selectedVoice) {
-      utterance.voice = selectedVoice;
-      utterance.lang = selectedVoice.lang;
+    try {
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.resume();
+      const testText = "Aura Skincare provides natural organic protection for bright summer days.";
+      const utterance = new SpeechSynthesisUtterance(testText);
+
+      if (selectedVoiceName) {
+        const allVoices = window.speechSynthesis.getVoices() || [];
+        const match = allVoices.find((v) => v && v.name === selectedVoiceName);
+        if (match) {
+          utterance.voice = match;
+          utterance.lang = match.lang || 'en-IN';
+        }
+      }
+
+      utterance.rate = 0.98;
+      utterance.pitch = 1.0;
+      utterance.onstart = () => setIsPlayingTestVoice(true);
+      utterance.onend = () => setIsPlayingTestVoice(false);
+      utterance.onerror = () => setIsPlayingTestVoice(false);
+      window.speechSynthesis.speak(utterance);
+    } catch (e) {
+      setIsPlayingTestVoice(false);
     }
-    utterance.rate = 0.98;
-    utterance.pitch = 1.0;
-    utterance.onstart = () => setIsPlayingTestVoice(true);
-    utterance.onend = () => setIsPlayingTestVoice(false);
-    utterance.onerror = () => setIsPlayingTestVoice(false);
-    window.speechSynthesis.speak(utterance);
   };
 
   const handleSave = () => {
@@ -147,23 +201,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             <div className="relative">
               <select
-                value={selectedVoice?.name || ''}
+                value={selectedVoiceName}
                 onChange={(e) => {
-                  const voice = availableVoices.find((v) => v.name === e.target.value);
-                  if (voice) setSelectedVoice(voice);
+                  if (onSelectVoiceName) {
+                    onSelectVoiceName(e.target.value);
+                  }
                 }}
                 className="w-full py-2.5 px-3 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-aura-400 text-xs bg-white text-stone-800 font-medium"
               >
-                {availableVoices.map((v) => {
-                  const isEn = v.lang.toLowerCase().startsWith('en');
-                  const isNatural = v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('online');
-                  const prefix = isNatural ? '⭐ [Natural] ' : isEn ? '🗣️ [English] ' : '🌐 ';
-                  return (
-                    <option key={v.name} value={v.name}>
-                      {prefix}{v.name} ({v.lang})
-                    </option>
-                  );
-                })}
+                {voices.length === 0 ? (
+                  <option value="">Browser Default Voice</option>
+                ) : (
+                  voices.map((v) => {
+                    const name = v.name || 'Voice';
+                    const lang = (v.lang || '').toLowerCase();
+                    const isEn = lang.startsWith('en');
+                    const isNatural = name.toLowerCase().includes('natural') || name.toLowerCase().includes('online') || name.toLowerCase().includes('neural');
+                    const prefix = isNatural ? '⭐ [Natural] ' : isEn ? '🗣️ [English] ' : '🌐 ';
+                    return (
+                      <option key={name} value={name}>
+                        {prefix}{name} {v.lang ? `(${v.lang})` : ''}
+                      </option>
+                    );
+                  })
+                )}
               </select>
             </div>
             <p className="text-[10px] text-stone-500 mt-1.5 leading-normal">

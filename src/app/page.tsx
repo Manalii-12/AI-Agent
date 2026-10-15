@@ -22,8 +22,7 @@ function StorefrontContent() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [apiKey, setApiKey] = useState<string>('');
   const [provider, setProvider] = useState<'groq' | 'openai'>('groq');
-  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoiceName, setSelectedVoiceName] = useState<string>('');
 
   const { user } = useAuth();
 
@@ -55,10 +54,8 @@ function StorefrontContent() {
           onOpenAuth={() => setIsAuthOpen(true)}
           apiKey={apiKey}
           provider={provider}
-          selectedVoice={selectedVoice}
-          setSelectedVoice={setSelectedVoice}
-          availableVoices={availableVoices}
-          setAvailableVoices={setAvailableVoices}
+          selectedVoiceName={selectedVoiceName}
+          onSelectVoiceName={setSelectedVoiceName}
         />
       </main>
 
@@ -104,9 +101,8 @@ function StorefrontContent() {
         setApiKey={setApiKey}
         provider={provider}
         setProvider={setProvider}
-        selectedVoice={selectedVoice}
-        setSelectedVoice={setSelectedVoice}
-        availableVoices={availableVoices}
+        selectedVoiceName={selectedVoiceName}
+        onSelectVoiceName={setSelectedVoiceName}
       />
 
       {/* Footer */}
