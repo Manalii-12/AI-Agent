@@ -393,7 +393,8 @@ export function useVoiceAgent({
       stopRecognitionSafe();
 
       try {
-        const res = await fetch('/api/chat', {
+        const apiBase = process.env.NEXT_PUBLIC_BACKEND_URL || '';
+        const res = await fetch(`${apiBase}/api/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -598,7 +599,8 @@ export function useVoiceAgent({
     // Generate Structured Post-Call Summary
     setIsSummaryLoading(true);
     try {
-      const res = await fetch('/api/summary', {
+      const apiBase = process.env.NEXT_PUBLIC_BACKEND_URL || '';
+      const res = await fetch(`${apiBase}/api/summary`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
