@@ -25,12 +25,21 @@ export async function handleVoiceChat(req: Request, res: Response) {
       query.includes('batao') ||
       query.includes('namaste');
 
-    // 1. Out of Scope
-    if (query.includes('flight') || query.includes('goa') || query.includes('hotel') || query.includes('weather')) {
+    // 1. Out of Scope (e.g. Flight to Goa)
+    if (
+      query.includes('flight') ||
+      query.includes('goa') ||
+      query.includes('hotel') ||
+      query.includes('weather') ||
+      query.includes('cricket') ||
+      query.includes('uber') ||
+      query.includes('movie') ||
+      query.includes('recipe')
+    ) {
       return res.json({
         response: isHinglish
-          ? 'Main sirf Aura Skincare ke orders aur products mein madad kar sakti hoon. Kya main aapki skincare se judi koi madad karoon?'
-          : 'I can only assist with Aura Skincare orders, products, and policies. How can I help you with your skincare routine today?',
+          ? 'Maaf kijiye, main sirf Aura Skincare se judi queries jaise orders, shipping aur skincare products mein hi madad kar sakti hoon. Kya main Aura Skincare ke kisi product ya order mein aapki sahayata karoon?'
+          : 'I can only help with Aura Skincare-related queries, such as our products, orders, shipping, and returns. Is there anything about Aura Skincare I can assist you with?',
       });
     }
 
@@ -45,18 +54,20 @@ export async function handleVoiceChat(req: Request, res: Response) {
 
     // 3. Extract Order ID
     let orderId: string | null = null;
-    const match = userText.match(/ORD[- ]?(\d+)/i) || userText.match(/\b(10[1-9])\b/);
+    const match = userText.match(/ORD[- ]?(\d+)/i) || userText.match(/\b(10[1-9]|999)\b/);
     if (match) {
       orderId = `ORD-${match[1]}`;
     }
 
-    // A. Cancellation
+    // A. Cancellation Policy Enforcement
     if (query.includes('cancel')) {
       if (orderId) {
         const order = await prisma.order.findUnique({ where: { id: orderId } });
         if (!order) {
           return res.json({
-            response: `I couldn't locate order ${orderId} in our database. Could you please double-check your order number?`,
+            response: isHinglish
+              ? 'Mujhe us number ka koi order nahi mila, kya aap kripya apna Order ID dobara repeat ya verify kar sakte hain?'
+              : "I couldn't locate an order with that number, could you please repeat or verify the ID?",
           });
         }
         if (order.status === 'Processing') {
@@ -73,70 +84,113 @@ export async function handleVoiceChat(req: Request, res: Response) {
         } else {
           return res.json({
             response: isHinglish
-              ? `Maaf kijiye, order ${orderId} cancel nahi ho sakta kyunki yeh ${order.status} status mein hai. Aap doorstep par delivery lene se mana kar sakte hain.`
-              : `I apologize, but order ${orderId} cannot be cancelled because its status is already "${order.status}". Under our cancellation policy, orders can only be cancelled while in Processing.`,
+              ? `Maaf kijiye, order ${orderId} cancel nahi ho sakta kyunki yeh out for delivery ya delivered ho chuka hai. Humari policy ke mutaabiq orders sirf Processing status mein hi cancel ho sakte hain. Aap doorstep par delivery lene se mana kar sakte hain.`
+              : `I apologize, but order ${orderId} cannot be cancelled because it is already ${order.status}. Under our policy, orders can only be cancelled while their status is Processing. However, you may refuse delivery at your doorstep when the courier arrives.`,
             toolCalled: { name: 'cancel_order', args: { order_id: orderId }, result: { success: false } },
           });
         }
       } else {
         return res.json({
           response: isHinglish
-            ? 'Agar aapka order abhi Processing mein hai toh main cancel kar sakti hoon. Kripya apna Order ID batayein, jaise ORD-103?'
-            : 'I can help cancel your order if it is still Processing. Could you please provide your Order ID, such as ORD-103?',
+            ? 'Orders sirf tabhi cancel ho sakte hain jab tak unka status Processing ho. Kripya apna Order ID batayein, jaise ORD-103?'
+            : 'Orders can only be cancelled while their status is Processing. Could you please provide your Order ID, such as ORD-103?',
         });
       }
     }
 
-    // B. Return / Refund
-    if (query.includes('return') || query.includes('refund')) {
-      const isOpened = query.includes('open') || query.includes('opened') || query.includes('used');
+    // B. Return / Refund Policy Enforcement
+    if (
+      query.includes('return') ||
+      query.includes('refund') ||
+      query.includes('exchange') ||
+      query.includes('wapas') ||
+      query.includes('20 days') ||
+      query.includes('20 din') ||
+      query.includes('days ago')
+    ) {
+      const isOpened = query.includes('open') || query.includes('opened') || query.includes('used') || query.includes('khula');
+      const isPastLimit = query.includes('20 days') || query.includes('20 din') || query.includes('14 days') || query.includes('month');
+
       if (orderId) {
         const order = await prisma.order.findUnique({ where: { id: orderId } });
         if (order && order.deliveredDaysAgo && order.deliveredDaysAgo > 7) {
           return res.json({
             response: isHinglish
-              ? `Aapka order ${orderId} 14 din pehle deliver hua tha. Humari policy ke anusaar 7 din ke baad return accept nahi hota.`
-              : `I apologize, but order ${orderId} was delivered 14 days ago. Under our return policy, returns must be requested within 7 days of delivery.`,
+              ? `Maaf kijiye, par order ${orderId} Delhivery se 14 din pehle deliver hua tha. Humari policy ke anusaar 7 din ke baad return accept nahi hota.`
+              : `I apologize, but order ${orderId} was delivered 14 days ago. Under our return policy, returns are accepted strictly within 7 days of delivery for unopened products. Because 14 days have passed, this order is not eligible for a return.`,
             toolCalled: { name: 'check_return_eligibility', args: { order_id: orderId }, result: { eligible: false } },
           });
         }
       }
-      if (isOpened) {
+
+      if (isPastLimit || isOpened) {
         return res.json({
           response: isHinglish
-            ? 'Humari policy ke mutaabiq khule hue products return nahi hote. Sirf unopened items hi 7 din ke andar return ho sakte hain.'
-            : 'Under our policy, opened or used products cannot be returned for hygiene reasons. Returns are only accepted for unopened items in original packaging within 7 days.',
+            ? 'Maaf kijiye, par yeh request humari return policy ke bahar aati hai. Aura Skincare mein returns sirf delivery ke 7 din ke andar aur unopened products ke liye hi accept hote hain. Kyunki aapka product 20 din pehle aaya tha aur khula hua hai, hum iska return ya refund accept nahi kar sakte.'
+            : "I'm sorry, but that falls outside our return policy. At Aura Skincare, returns are accepted strictly within 7 days of delivery for unopened and unused products in their original packaging. Since the product was delivered 20 days ago and has been opened, we cannot accept a return or issue a refund.",
         });
       }
+
+      return res.json({
+        response: isHinglish
+          ? 'Returns delivery ke 7 din ke andar unopened products ke liye accept hote hain. Kripya apna Order ID batayein taaki main eligibility check kar sakoon?'
+          : 'Returns are accepted within 7 days of delivery for unopened items in original packaging. Could you please share your Order ID so I can verify eligibility?',
+      });
     }
 
     // C. Tracking & Order Lookup
     if (orderId || query.includes('track') || query.includes('where is my') || query.includes('status')) {
       if (orderId) {
         const order = await prisma.order.findUnique({ where: { id: orderId } });
-        if (order) {
-          let reply = '';
-          if (isHinglish) {
-            if (order.id === 'ORD-101') {
-              reply = 'Aapka order BlueDart se nikal chuka hai aur aaj shaam 6 baje tak deliver ho jayega. Koi aur madad chahiye?';
-            } else {
-              reply = `Aapka order ${order.id} abhi ${order.status} status mein hai.`;
-            }
-          } else {
-            if (order.status === 'Out for Delivery') {
-              reply = `Your order ${order.id} is Out for Delivery with ${order.courier || 'BlueDart'}. Tracking number is ${order.trackingNumber || 'BD-982103'}, expected by 6 PM today.`;
-            } else if (order.status === 'Delivered') {
-              reply = `Your order ${order.id} was delivered ${order.deliveredDaysAgo || 14} days ago via ${order.courier || 'Delhivery'}.`;
-            } else {
-              reply = `Your order ${order.id} is currently in ${order.status} status.`;
-            }
-          }
+        if (!order) {
           return res.json({
-            response: reply,
-            toolCalled: { name: 'get_order_details', args: { order_id: orderId }, result: { success: true, data: order } },
+            response: isHinglish
+              ? 'Mujhe us number ka koi order nahi mila, kya aap kripya apna Order ID dobara repeat ya verify kar sakte hain?'
+              : "I couldn't locate an order with that number, could you please repeat or verify the ID?",
           });
         }
+        let reply = '';
+        if (isHinglish) {
+          if (order.id === 'ORD-101') {
+            reply = 'Aapka order ORD-101 Vitamin C Serum ke liye BlueDart se out for delivery hai aur tracking number BD-982103 hai. Yeh aaj shaam 6 baje tak deliver ho jayega. Koi aur madad chahiye?';
+          } else if (order.id === 'ORD-102') {
+            reply = 'Aapka order ORD-102 Delhivery se 14 din pehle deliver ho chuka tha. Kya aapko kisi aur cheez mein madad chahiye?';
+          } else if (order.id === 'ORD-103') {
+            reply = 'Aapka order ORD-103 abhi Processing status mein hai aur 3 ghante pehle place hua tha.';
+          } else {
+            reply = `Aapka order ${order.id} abhi ${order.status} status mein hai.`;
+          }
+        } else {
+          if (order.status === 'Out for Delivery') {
+            reply = `Your order ${order.id} for the Vitamin C Serum is out for delivery with ${order.courier || 'BlueDart'} under tracking number ${order.trackingNumber || 'BD-982103'}, and it is expected to arrive by 6 PM today.`;
+          } else if (order.status === 'Delivered') {
+            reply = `Your order ${order.id} for the Hydrating Sunscreen was delivered ${order.deliveredDaysAgo || 14} days ago via ${order.courier || 'Delhivery'}.`;
+          } else if (order.status === 'Processing') {
+            reply = `Your order ${order.id} was placed 3 hours ago and is currently in Processing status.`;
+          } else {
+            reply = `Your order ${order.id} is currently in ${order.status} status.`;
+          }
+        }
+        return res.json({
+          response: reply,
+          toolCalled: { name: 'get_order_details', args: { order_id: orderId }, result: { success: true, data: order } },
+        });
+      } else {
+        return res.json({
+          response: isHinglish
+            ? 'Main aapka order track kar sakti hoon. Kripya apna Order ID batayein, jaise ORD-101?'
+            : 'I would be happy to track your order. Could you please provide your Order ID, for example ORD-101?',
+        });
       }
+    }
+
+    // D. Cash on Delivery (COD) Policy
+    if (query.includes('cod') || query.includes('cash on delivery') || query.includes('pay on delivery')) {
+      return res.json({
+        response: isHinglish
+          ? 'Haanji, 2,500 Rupees tak ke orders par Cash on Delivery available hai. Aap doorstep par cash ya UPI dono se payment kar sakte hain.'
+          : 'Cash on Delivery is available for all orders up to 2,500 Rupees. You can pay using cash or UPI directly at your doorstep.',
+      });
     }
 
     // D. Shipping Policy

@@ -47,6 +47,7 @@ export function useVoiceAgent({
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const audioCooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
   const interimBufferRef = useRef<string>('');
+  const userSpeechAccumulatorRef = useRef<string>('');
 
   // Synchronize state and call active refs
   useEffect(() => {
@@ -77,24 +78,50 @@ export function useVoiceAgent({
         // Filter valid voices
         const validVoices = allVoices.filter((v) => v && typeof v.name === 'string');
 
-        // Group English voices first for high pronunciation accuracy (strictly exclude pure Hindi voices)
+        // Helper to identify Indian English / Indian voices (PDF: "preferably in an Indian voice")
+        const isIndianVoice = (v: SpeechSynthesisVoice) => {
+          const l = (v.lang || '').toLowerCase();
+          const n = (v.name || '').toLowerCase();
+          return (
+            l.includes('en-in') ||
+            l.includes('hi-in') ||
+            l === 'hi' ||
+            n.includes('india') ||
+            n.includes('neerja') ||
+            n.includes('prabhat') ||
+            n.includes('heera') ||
+            n.includes('ravi') ||
+            n.includes('veena') ||
+            n.includes('priya') ||
+            n.includes('ananya') ||
+            n.includes('aarav') ||
+            n.includes('kalpana') ||
+            n.includes('geeta')
+          );
+        };
+
+        const indianVoices = validVoices.filter(isIndianVoice);
         const englishVoices = validVoices.filter((v) => {
           const lang = (v.lang || '').toLowerCase();
-          return lang.startsWith('en') && !lang.startsWith('hi');
+          return lang.startsWith('en');
         });
 
-        // Sort voices safely: Natural English first, then English, then others
+        // Sort voices safely: Indian English first (as required by PDF), then Natural English, then others
         const sortedVoices = [...validVoices].sort((a, b) => {
-          const aLang = (a.lang || '').toLowerCase();
-          const bLang = (b.lang || '').toLowerCase();
+          const aIsInd = isIndianVoice(a);
+          const bIsInd = isIndianVoice(b);
+          if (aIsInd && !bIsInd) return -1;
+          if (!aIsInd && bIsInd) return 1;
+
           const aName = (a.name || '').toLowerCase();
           const bName = (b.name || '').toLowerCase();
-
           const aIsNatural = aName.includes('natural') || aName.includes('online') || aName.includes('neural');
           const bIsNatural = bName.includes('natural') || bName.includes('online') || bName.includes('neural');
           if (aIsNatural && !bIsNatural) return -1;
           if (!aIsNatural && bIsNatural) return 1;
 
+          const aLang = (a.lang || '').toLowerCase();
+          const bLang = (b.lang || '').toLowerCase();
           const aIsEn = aLang.startsWith('en');
           const bIsEn = bLang.startsWith('en');
           if (aIsEn && !bIsEn) return -1;
@@ -105,34 +132,33 @@ export function useVoiceAgent({
 
         setAvailableVoices(sortedVoices);
 
-        // 1. Natural / Neural English Voices
+        // 1. Natural / Online Indian English Voice (e.g. Microsoft Neerja Online (Natural) - English (India))
+        const indianNaturalVoice = indianVoices.find((v) => {
+          const n = (v.name || '').toLowerCase();
+          return n.includes('natural') || n.includes('online') || n.includes('neural') || n.includes('neerja');
+        });
+
+        // 2. High clarity Indian voice (e.g. Microsoft Heera, Google English India, en-IN)
+        const anyIndianVoice =
+          indianVoices.find((v) => {
+            const l = (v.lang || '').toLowerCase();
+            return l.includes('en-in');
+          }) || indianVoices[0];
+
+        // 3. High quality natural English voices (fallback if device has no Indian voice)
         const naturalEnglishVoice = englishVoices.find((v) => {
           const n = (v.name || '').toLowerCase();
           return n.includes('natural') || n.includes('online') || n.includes('neural');
         });
 
-        // 2. High clarity Indian English voices
-        const indianEnglishVoice = englishVoices.find((v) => {
-          const l = (v.lang || '').toLowerCase();
-          const n = (v.name || '').toLowerCase();
-          return (l.includes('en-in') || n.includes('india') || n.includes('neerja')) && !l.startsWith('hi');
-        });
-
-        // 3. Clear Google English voices
-        const googleEnglishVoice = englishVoices.find((v) => (v.name || '').toLowerCase().includes('google'));
-
-        // 4. Standard English female voices
-        const standardEnglishVoice = englishVoices.find((v) => {
-          const n = (v.name || '').toLowerCase();
-          return n.includes('zira') || n.includes('samantha') || n.includes('jenny') || n.includes('female');
-        });
+        // 4. Standard English voice fallback
+        const standardEnglishVoice = englishVoices[0];
 
         const defaultVoice =
+          indianNaturalVoice ||
+          anyIndianVoice ||
           naturalEnglishVoice ||
-          indianEnglishVoice ||
-          googleEnglishVoice ||
           standardEnglishVoice ||
-          englishVoices[0] ||
           sortedVoices[0] ||
           null;
 
@@ -462,8 +488,8 @@ export function useVoiceAgent({
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
-      const lang = selectedVoice?.lang || '';
-      recognition.lang = lang.toLowerCase().startsWith('en') ? lang : 'en-IN';
+      // Indian English acoustic model understands Indian accents, "Namaste", and Hinglish natively
+      recognition.lang = 'en-IN';
 
       recognition.onstart = () => {
         if (!isSpeakingRef.current && stateRef.current !== 'thinking') {
@@ -477,40 +503,78 @@ export function useVoiceAgent({
           return;
         }
 
-        let finalSpeech = '';
-        let interim = '';
+        let incrementalFinal = '';
+        let currentInterim = '';
 
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           const result = event.results[i];
           if (result.isFinal) {
-            finalSpeech += result[0].transcript;
+            incrementalFinal += ' ' + result[0].transcript;
           } else {
-            interim += result[0].transcript;
+            currentInterim += result[0].transcript;
           }
         }
 
-        if (finalSpeech.trim()) {
-          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-          interimBufferRef.current = '';
-          setInterimText('');
-          processUserSpeech(finalSpeech.trim());
-          return;
+        // Accumulate final transcript chunks across brief speaker pauses
+        if (incrementalFinal.trim()) {
+          userSpeechAccumulatorRef.current = (
+            userSpeechAccumulatorRef.current + ' ' + incrementalFinal.trim()
+          ).trim();
         }
 
-        if (interim.trim()) {
-          interimBufferRef.current = interim.trim();
-          setInterimText(interim);
+        const totalSpoken = (
+          userSpeechAccumulatorRef.current + ' ' + currentInterim.trim()
+        ).trim();
 
-          // Responsive 500ms silence timer (reduced from 900ms to eliminate voice lag)
-          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        if (totalSpoken) {
+          setInterimText(totalSpoken);
+
+          // Clear previous silence timer
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+          }
+
+          // Check if utterance ends with an incomplete connector (e.g. "and", "or", "because", "can I", "par", "aur")
+          const lower = totalSpoken.toLowerCase().trim();
+          const isIncomplete =
+            lower.endsWith(' and') ||
+            lower.endsWith(' or') ||
+            lower.endsWith(' but') ||
+            lower.endsWith(' because') ||
+            lower.endsWith(' so') ||
+            lower.endsWith(' if') ||
+            lower.endsWith(' can i') ||
+            lower.endsWith(' will you') ||
+            lower.endsWith(' aur') ||
+            lower.endsWith(' ya') ||
+            lower.endsWith(' par') ||
+            lower.endsWith(' lekin') ||
+            lower.endsWith(' kyunki') ||
+            lower.endsWith(' toh') ||
+            lower.endsWith(' ki') ||
+            lower.endsWith(' mera') ||
+            lower.endsWith(' order');
+
+          // Conversational turn-taking pause: 1400ms standard, 1900ms if sentence is clearly mid-clause
+          // This gives the user plenty of time to formulate their sentence without being cut off mid-speech
+          const debounceMs = isIncomplete ? 1900 : 1400;
+
           silenceTimerRef.current = setTimeout(() => {
-            if (interimBufferRef.current && !isSpeakingRef.current && stateRef.current !== 'thinking') {
-              const captured = interimBufferRef.current;
-              interimBufferRef.current = '';
+            const capturedQuery = (
+              userSpeechAccumulatorRef.current + ' ' + currentInterim.trim()
+            ).trim();
+
+            if (
+              capturedQuery &&
+              !isSpeakingRef.current &&
+              stateRef.current !== 'thinking' &&
+              isCallActiveRef.current
+            ) {
+              userSpeechAccumulatorRef.current = '';
               setInterimText('');
-              processUserSpeech(captured);
+              processUserSpeech(capturedQuery);
             }
-          }, 500);
+          }, debounceMs);
         }
       };
 
@@ -547,6 +611,7 @@ export function useVoiceAgent({
     setTranscript([]);
     setIsCallActive(true);
     isCallActiveRef.current = true;
+    userSpeechAccumulatorRef.current = '';
     setState('speaking');
 
     await setupAudioVisualizer();
@@ -574,6 +639,7 @@ export function useVoiceAgent({
   const endCall = async () => {
     setIsCallActive(false);
     isCallActiveRef.current = false;
+    userSpeechAccumulatorRef.current = '';
     setState('idle');
 
     if (silenceTimerRef.current) {
@@ -623,6 +689,8 @@ export function useVoiceAgent({
 
   // Manual text prompt submission (useful if mic isn't available or for quick testing chips)
   const sendManualText = (text: string) => {
+    userSpeechAccumulatorRef.current = '';
+    setInterimText('');
     interruptAgent();
     processUserSpeech(text);
   };

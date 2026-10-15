@@ -53,7 +53,7 @@ export function get_order_details(order_id: string): ToolResult {
   if (!order) {
     return {
       success: false,
-      message: `I couldn't locate an order with number ${normalizedId}. Could you please repeat or verify the ID?`,
+      message: `I couldn't locate an order with that number, could you please repeat or verify the ID?`,
       data: { searchedId: normalizedId, availableSampleOrders: ['ORD-101', 'ORD-102', 'ORD-103'] },
     };
   }

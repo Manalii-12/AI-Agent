@@ -205,6 +205,62 @@ export const TestOrdersPanel: React.FC<TestOrdersPanelProps> = ({ onSelectPrompt
         </span>
         <div className="flex flex-wrap gap-1.5">
           <button
+            onClick={() => handleChipClick("Namaste! Kaise ho?")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-orange-50 hover:bg-orange-100 text-orange-900 border border-orange-200 transition cursor-pointer font-medium"
+            title="Tests Indian Greeting & Accent"
+          >
+            🙏 &quot;Namaste! Kaise ho?&quot;
+          </button>
+          <button
+            onClick={() => handleChipClick("I bought this 20 days ago and have opened it. Can I return it?")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-950 border border-rose-200 transition cursor-pointer font-medium"
+            title="DataStraw PDF Policy Enforcement Example"
+          >
+            🛡️ &quot;I bought this 20 days ago and have opened it. Can I return it?&quot;
+          </button>
+          <button
+            onClick={() => handleChipClick("Can you book me a flight to Goa?")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer font-medium"
+            title="DataStraw PDF Out-of-Scope Example"
+          >
+            ✈️ &quot;Can you book me a flight to Goa?&quot;
+          </button>
+          <button
+            onClick={() => handleChipClick("Can you tell me where my order ORD-101 is?")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 transition cursor-pointer font-medium"
+            title="DataStraw PDF Order Lookup Example"
+          >
+            📦 &quot;Where is my order ORD-101?&quot;
+          </button>
+          <button
+            onClick={() => handleChipClick("Can I cancel ORD-101?")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 transition cursor-pointer font-medium"
+            title="Tests Policy Enforcement: Out for Delivery cannot be cancelled"
+          >
+            🚫 &quot;Can I cancel ORD-101?&quot;
+          </button>
+          <button
+            onClick={() => handleChipClick("Can I return order ORD-102? It has been 14 days.")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 transition cursor-pointer font-medium"
+            title="Tests Policy Enforcement: 14 days exceeds 7 day return window"
+          >
+            ⏳ &quot;Can I return ORD-102? (14 days ago)&quot;
+          </button>
+          <button
+            onClick={() => handleChipClick("Please cancel my order ORD-103")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 transition cursor-pointer font-medium"
+            title="Tests Tool Execution: Cancels Processing order"
+          >
+            ✅ &quot;Cancel order ORD-103 (Processing)&quot;
+          </button>
+          <button
+            onClick={() => handleChipClick("Where is order ORD-999?")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer font-medium"
+            title="DataStraw PDF Graceful Degradation / Invalid Order"
+          >
+            ❓ &quot;Where is order ORD-999?&quot;
+          </button>
+          <button
             onClick={() => handleChipClick("Mera ORD-101 abhi tak aaya nahi, kab tak aayega?")}
             className="text-[10px] px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 transition cursor-pointer font-medium"
             title="Native Hinglish Tracking test"
@@ -212,54 +268,22 @@ export const TestOrdersPanel: React.FC<TestOrdersPanelProps> = ({ onSelectPrompt
             🇮🇳 &quot;Mera ORD-101 kab tak aayega?&quot;
           </button>
           <button
-            onClick={() => handleChipClick("What do you recommend for summer skincare?")}
-            className="text-[10px] px-2.5 py-1 rounded-full bg-orange-50 hover:bg-orange-100 text-orange-950 border border-orange-200 transition cursor-pointer font-medium"
-            title="Summer skincare recommendation and pronunciation test"
+            onClick={() => handleChipClick("What are your shipping charges?")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer font-medium"
           >
-            ☀️ &quot;What do you recommend for summer?&quot;
-          </button>
-          <button
-            onClick={() => handleChipClick("Add the SPF 50 Sunscreen to my cart")}
-            className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 transition cursor-pointer font-medium"
-            title="Voice Cart management test"
-          >
-            🛍️ &quot;Add the SPF 50 Sunscreen to my cart&quot;
-          </button>
-          <button
-            onClick={() => handleChipClick("What's in my bag right now?")}
-            className="text-[10px] px-2.5 py-1 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 transition cursor-pointer font-medium"
-          >
-            👜 &quot;What&apos;s in my bag right now?&quot;
-          </button>
-          <button
-            onClick={() => handleChipClick("Reorder my sunscreen")}
-            className="text-[10px] px-2.5 py-1 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 transition cursor-pointer font-medium"
-          >
-            🔄 &quot;Reorder my sunscreen&quot;
-          </button>
-          <button
-            onClick={() => handleChipClick("What is your return policy for opened items?")}
-            className="text-[10px] px-2.5 py-1 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer"
-          >
-            🛡️ Opened product return policy
-          </button>
-          <button
-            onClick={() => handleChipClick("Can you book me a flight to Goa?")}
-            className="text-[10px] px-2.5 py-1 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer"
-          >
-            ✈️ Flight to Goa (Out-of-scope)
-          </button>
-          <button
-            onClick={() => handleChipClick("Where is order ORD-999?")}
-            className="text-[10px] px-2.5 py-1 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer"
-          >
-            ❓ Invalid ORD-999 (Graceful degradation)
+            🚚 Shipping charges & delivery time
           </button>
           <button
             onClick={() => handleChipClick("Do you offer Cash on Delivery?")}
-            className="text-[10px] px-2.5 py-1 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer"
+            className="text-[10px] px-2.5 py-1 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer font-medium"
           >
             💵 Cash on Delivery limit
+          </button>
+          <button
+            onClick={() => handleChipClick("What do you recommend for summer skincare?")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-orange-50 hover:bg-orange-100 text-orange-950 border border-orange-200 transition cursor-pointer font-medium"
+          >
+            ☀️ &quot;What do you recommend for summer?&quot;
           </button>
         </div>
       </div>

@@ -44,17 +44,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             lang: v.lang || '',
           }));
 
+        const isIndianVoice = (v: { name: string; lang: string }) => {
+          const l = (v.lang || '').toLowerCase();
+          const n = (v.name || '').toLowerCase();
+          return (
+            l.includes('en-in') ||
+            l.includes('hi-in') ||
+            l === 'hi' ||
+            n.includes('india') ||
+            n.includes('neerja') ||
+            n.includes('prabhat') ||
+            n.includes('heera') ||
+            n.includes('ravi') ||
+            n.includes('veena') ||
+            n.includes('priya') ||
+            n.includes('ananya')
+          );
+        };
+
         valid.sort((a, b) => {
-          const aLang = (a.lang || '').toLowerCase();
-          const bLang = (b.lang || '').toLowerCase();
+          const aIsInd = isIndianVoice(a);
+          const bIsInd = isIndianVoice(b);
+          if (aIsInd && !bIsInd) return -1;
+          if (!aIsInd && bIsInd) return 1;
+
           const aName = (a.name || '').toLowerCase();
           const bName = (b.name || '').toLowerCase();
-
           const aIsNatural = aName.includes('natural') || aName.includes('online') || aName.includes('neural');
           const bIsNatural = bName.includes('natural') || bName.includes('online') || bName.includes('neural');
           if (aIsNatural && !bIsNatural) return -1;
           if (!aIsNatural && bIsNatural) return 1;
 
+          const aLang = (a.lang || '').toLowerCase();
+          const bLang = (b.lang || '').toLowerCase();
           const aIsEn = aLang.startsWith('en');
           const bIsEn = bLang.startsWith('en');
           if (aIsEn && !bIsEn) return -1;
@@ -82,7 +104,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     try {
       window.speechSynthesis.cancel();
       window.speechSynthesis.resume();
-      const testText = "Aura Skincare provides natural organic protection for bright summer days.";
+      const testText = "Namaste! I am Aria from Aura Skincare. How can I assist you with your orders and skincare today?";
       const utterance = new SpeechSynthesisUtterance(testText);
 
       if (selectedVoiceName) {
@@ -215,9 +237,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   voices.map((v) => {
                     const name = v.name || 'Voice';
                     const lang = (v.lang || '').toLowerCase();
+                    const n = name.toLowerCase();
+                    const isIndian =
+                      lang.includes('en-in') ||
+                      lang.includes('hi') ||
+                      n.includes('india') ||
+                      n.includes('neerja') ||
+                      n.includes('prabhat') ||
+                      n.includes('heera') ||
+                      n.includes('ravi') ||
+                      n.includes('veena') ||
+                      n.includes('priya');
                     const isEn = lang.startsWith('en');
-                    const isNatural = name.toLowerCase().includes('natural') || name.toLowerCase().includes('online') || name.toLowerCase().includes('neural');
-                    const prefix = isNatural ? '⭐ [Natural] ' : isEn ? '🗣️ [English] ' : '🌐 ';
+                    const isNatural = n.includes('natural') || n.includes('online') || n.includes('neural');
+                    const prefix = isIndian
+                      ? '🇮🇳 [Indian Accent - Recommended] '
+                      : isNatural
+                      ? '⭐ [Natural] '
+                      : isEn
+                      ? '🗣️ [English] '
+                      : '🌐 ';
                     return (
                       <option key={name} value={name}>
                         {prefix}{name} {v.lang ? `(${v.lang})` : ''}
