@@ -13,12 +13,20 @@ interface VoiceAgentSectionProps {
   onOpenAuth: () => void;
   apiKey: string;
   provider: 'groq' | 'openai';
+  selectedVoice?: SpeechSynthesisVoice | null;
+  setSelectedVoice?: (voice: SpeechSynthesisVoice | null) => void;
+  availableVoices?: SpeechSynthesisVoice[];
+  setAvailableVoices?: (voices: SpeechSynthesisVoice[]) => void;
 }
 
 export const VoiceAgentSection: React.FC<VoiceAgentSectionProps> = ({
   onOpenAuth,
   apiKey,
   provider,
+  selectedVoice,
+  setSelectedVoice,
+  availableVoices,
+  setAvailableVoices,
 }) => {
   const { user, isAuthenticated, loginAsTestUser } = useAuth();
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
@@ -39,6 +47,10 @@ export const VoiceAgentSection: React.FC<VoiceAgentSectionProps> = ({
     apiKey,
     provider,
     customerName: user?.name,
+    selectedVoice,
+    setSelectedVoice,
+    availableVoices,
+    setAvailableVoices,
   });
 
   const handleEndCall = async () => {

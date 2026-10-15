@@ -12,7 +12,7 @@ interface SettingsModalProps {
   provider: 'groq' | 'openai';
   setProvider: (provider: 'groq' | 'openai') => void;
   selectedVoice: SpeechSynthesisVoice | null;
-  setSelectedVoice: (voice: SpeechSynthesisVoice) => void;
+  setSelectedVoice: (voice: SpeechSynthesisVoice | null) => void;
   availableVoices: SpeechSynthesisVoice[];
 }
 
@@ -29,8 +29,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [tempKey, setTempKey] = useState(apiKey);
   const [resetMessage, setResetMessage] = useState(false);
+  const [isPlayingTestVoice, setIsPlayingTestVoice] = useState(false);
 
   if (!isOpen) return null;
+
+  const handleTestVoice = () => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.resume();
+    const testText = "Aura Skincare provides natural organic protection for bright summer days.";
+    const utterance = new SpeechSynthesisUtterance(testText);
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+      utterance.lang = selectedVoice.lang;
+    }
+    utterance.rate = 0.98;
+    utterance.pitch = 1.0;
+    utterance.onstart = () => setIsPlayingTestVoice(true);
+    utterance.onend = () => setIsPlayingTestVoice(false);
+    utterance.onerror = () => setIsPlayingTestVoice(false);
+    window.speechSynthesis.speak(utterance);
+  };
 
   const handleSave = () => {
     setApiKey(tempKey.trim());
@@ -112,9 +131,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Voice Selection */}
           <div>
-            <label className="font-semibold text-stone-900 block mb-1.5">
-              Spoken Voice (Indian English Preferred)
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="font-semibold text-stone-900 block">
+                Spoken Voice (High-Clarity English)
+              </label>
+              <button
+                type="button"
+                onClick={handleTestVoice}
+                disabled={isPlayingTestVoice}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-aura-100 hover:bg-aura-200 text-aura-900 text-[11px] font-semibold transition cursor-pointer disabled:opacity-50"
+              >
+                <Volume2 className={`w-3.5 h-3.5 ${isPlayingTestVoice ? 'animate-bounce text-aura-700' : 'text-aura-800'}`} />
+                <span>{isPlayingTestVoice ? 'Testing Voice...' : 'Test Voice ("summer")'}</span>
+              </button>
+            </div>
             <div className="relative">
               <select
                 value={selectedVoice?.name || ''}
@@ -122,17 +152,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   const voice = availableVoices.find((v) => v.name === e.target.value);
                   if (voice) setSelectedVoice(voice);
                 }}
-                className="w-full py-2.5 px-3 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-aura-400 text-xs bg-white"
+                className="w-full py-2.5 px-3 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-aura-400 text-xs bg-white text-stone-800 font-medium"
               >
-                {availableVoices.map((v) => (
-                  <option key={v.name} value={v.name}>
-                    {v.name} ({v.lang})
-                  </option>
-                ))}
+                {availableVoices.map((v) => {
+                  const isEn = v.lang.toLowerCase().startsWith('en');
+                  const isNatural = v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('online');
+                  const prefix = isNatural ? '⭐ [Natural] ' : isEn ? '🗣️ [English] ' : '🌐 ';
+                  return (
+                    <option key={v.name} value={v.name}>
+                      {prefix}{v.name} ({v.lang})
+                    </option>
+                  );
+                })}
               </select>
             </div>
-            <p className="text-[10px] text-stone-400 mt-1">
-              Voices are populated by your operating system/browser. Indian voices like Microsoft Neerja/Heera or Google हिन्दी are prioritized.
+            <p className="text-[10px] text-stone-500 mt-1.5 leading-normal">
+              Select an English voice (e.g. Microsoft Neerja Online Natural, Google UK English, or Google US English). Natural online voices provide crystal-clear English pronunciation without robotic accents.
             </p>
           </div>
 

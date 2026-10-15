@@ -212,6 +212,13 @@ export const TestOrdersPanel: React.FC<TestOrdersPanelProps> = ({ onSelectPrompt
             🇮🇳 &quot;Mera ORD-101 kab tak aayega?&quot;
           </button>
           <button
+            onClick={() => handleChipClick("What do you recommend for summer skincare?")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-orange-50 hover:bg-orange-100 text-orange-950 border border-orange-200 transition cursor-pointer font-medium"
+            title="Summer skincare recommendation and pronunciation test"
+          >
+            ☀️ &quot;What do you recommend for summer?&quot;
+          </button>
+          <button
             onClick={() => handleChipClick("Add the SPF 50 Sunscreen to my cart")}
             className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 transition cursor-pointer font-medium"
             title="Voice Cart management test"

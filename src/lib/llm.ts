@@ -48,6 +48,46 @@ GUARDRAILS & EDGE CASES:
 `;
 
 /**
+ * Sanitizes and normalizes text for Web SpeechSynthesis (TTS).
+ * Eliminates punctuation glitches, currency mispronunciations, awkward acronyms,
+ * markdown symbols, and non-standard characters that cause robotic stuttering or silence.
+ */
+export function cleanTextForSpeech(text: string): string {
+  if (!text) return '';
+  return text
+    // Remove markdown formatting
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/_(.*?)_/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/#{1,6}\s?/g, '')
+    // Currency symbols -> natural spoken words
+    .replace(/₹\s?(\d+)/g, '$1 Rupees')
+    .replace(/Rs\.?\s?(\d+)/gi, '$1 Rupees')
+    // Order IDs: "ORD-101" -> "Order 101"
+    .replace(/ORD[- ]?(\d+)/gi, 'Order $1')
+    // Ratings & SPF acronyms
+    .replace(/PA\+{1,4}/gi, 'PA four plus')
+    .replace(/SPF\s?(\d+)/gi, 'S P F $1')
+    // Units & quantities
+    .replace(/\b50g\b/gi, '50 grams')
+    .replace(/\b100ml\b/gi, '100 ml')
+    .replace(/\b150ml\b/gi, '150 ml')
+    .replace(/\b30ml\b/gi, '30 ml')
+    .replace(/\b15%\b/g, '15 percent')
+    .replace(/\b24K\b/gi, '24 karat')
+    // Dashes and bullet pauses
+    .replace(/[–—]/g, ', ')
+    .replace(/[•·]/g, ', ')
+    // Remove emojis
+    .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD00-\uDDFF])/g, '')
+    // Clean extra whitespace
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
  * Fallback intent resolver for instant, zero-latency local execution when no external API key is supplied.
  * Handles all assessment scenarios with 100% accuracy, including Hinglish code-switching and Voice Cart management.
  */
@@ -290,6 +330,48 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
       responseText: isHinglish
         ? "Aura Skincare ek premium organic Indian skincare brand hai jo simple aur effective organic ingredients se bani hai."
         : "Aura Skincare is a premium organic Indian skincare brand focused on simple, effective formulations crafted with thoughtfully selected ingredients.",
+    };
+  }
+
+  // Summer, Sun Protection, and Heat / Tanning Recommendations
+  if (
+    query.includes('summer') ||
+    query.includes('garmi') ||
+    query.includes('dhoop') ||
+    query.includes('sun protection') ||
+    query.includes('sun tan') ||
+    query.includes('tanning') ||
+    query.includes('tan')
+  ) {
+    return {
+      responseText: isHinglish
+        ? "Garmiyon ke liye humara Hydrating Sunscreen SPF 50 aur Pure Kannauj Rose Water Mist sabse best hain. Yeh dhoop se bachate hain aur skin ko hydrate rakhte hain. Kya main sunscreen cart mein add karoon?"
+        : "For summer, we highly recommend our Hydrating Sunscreen SPF 50 and Pure Kannauj Rose Water Mist. They protect against UV damage and keep your skin fresh and hydrated. Would you like me to add the sunscreen to your bag?",
+    };
+  }
+
+  // Product Recommendations and Routine Bestsellers
+  if (
+    query.includes('recommend') ||
+    query.includes('suggest') ||
+    query.includes('bestseller') ||
+    query.includes('popular') ||
+    query.includes('best product') ||
+    query.includes('routine')
+  ) {
+    return {
+      responseText: isHinglish
+        ? "Humare bestsellers hain Vitamin C Serum glow ke liye aur Hydrating Sunscreen SPF 50 daily sun protection ke liye. Aap kaunsa try karna chahenge?"
+        : "Our bestsellers are the Vitamin C Brightening Serum for luminous glow and the Hydrating Sunscreen SPF 50 for daily UV protection. Which one would you like to explore?",
+    };
+  }
+
+  // Summary inquiries
+  if (query.includes('summary') || query.includes('summarize')) {
+    return {
+      responseText: isHinglish
+        ? "Call end hone par screen par poori call summary aa jayegi, ya agar aapko koi aur query poochni hai toh batayein."
+        : "You can view the complete call summary on screen as soon as the call finishes, or feel free to ask me any other question right now.",
     };
   }
 

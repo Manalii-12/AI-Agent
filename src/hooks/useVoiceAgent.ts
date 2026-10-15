@@ -2,25 +2,46 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AgentState, TranscriptMessage, CallSummaryOutcome } from '@/types';
+import { cleanTextForSpeech } from '@/lib/llm';
 
 interface UseVoiceAgentProps {
   apiKey?: string;
   provider?: 'groq' | 'openai';
   customerName?: string;
   onStateChange?: (state: AgentState) => void;
+  selectedVoice?: SpeechSynthesisVoice | null;
+  setSelectedVoice?: (voice: SpeechSynthesisVoice | null) => void;
+  availableVoices?: SpeechSynthesisVoice[];
+  setAvailableVoices?: (voices: SpeechSynthesisVoice[]) => void;
 }
 
-export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onStateChange }: UseVoiceAgentProps = {}) {
+export function useVoiceAgent({
+  apiKey,
+  provider = 'groq',
+  customerName,
+  onStateChange,
+  selectedVoice: propSelectedVoice,
+  setSelectedVoice: propSetSelectedVoice,
+  availableVoices: propAvailableVoices,
+  setAvailableVoices: propSetAvailableVoices,
+}: UseVoiceAgentProps = {}) {
   const [state, setState] = useState<AgentState>('idle');
   const [transcript, setTranscript] = useState<TranscriptMessage[]>([]);
   const [interimText, setInterimText] = useState<string>('');
   const [currentToolCall, setCurrentToolCall] = useState<any>(null);
   const [summary, setSummary] = useState<CallSummaryOutcome | null>(null);
   const [isSummaryLoading, setIsSummaryLoading] = useState<boolean>(false);
-  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [isCallActive, setIsCallActive] = useState<boolean>(false);
   const [audioLevel, setAudioLevel] = useState<number>(0);
+
+  // Internal voice state if not supplied via props
+  const [localSelectedVoice, setLocalSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
+  const [localAvailableVoices, setLocalAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+
+  const selectedVoice = propSelectedVoice !== undefined ? propSelectedVoice : localSelectedVoice;
+  const setSelectedVoice = propSetSelectedVoice || setLocalSelectedVoice;
+  const availableVoices = propAvailableVoices !== undefined ? propAvailableVoices : localAvailableVoices;
+  const setAvailableVoices = propSetAvailableVoices || setLocalAvailableVoices;
 
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
@@ -34,6 +55,7 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
   const animationFrameRef = useRef<number | null>(null);
   const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioCooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
   const interimBufferRef = useRef<string>('');
 
   // Synchronize state and call active refs
@@ -50,7 +72,7 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
     transcriptRef.current = transcript;
   }, [transcript]);
 
-  // Load browser TTS voices prioritizing Indian English
+  // Load browser TTS voices with high-clarity English prioritization (excluding pure Hindi voices)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -58,32 +80,70 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
 
     const updateVoices = () => {
       if (!synthRef.current) return;
-      const voices = synthRef.current.getVoices();
-      if (voices.length === 0) return;
-      setAvailableVoices(voices);
+      const allVoices = synthRef.current.getVoices();
+      if (allVoices.length === 0) return;
 
-      // Prioritize Indian English voices
-      const indianVoice = voices.find(
-        (v) =>
-          v.lang.toLowerCase().includes('en-in') ||
-          v.lang.toLowerCase().includes('hi-in') ||
-          v.name.toLowerCase().includes('india') ||
-          v.name.toLowerCase().includes('neerja') ||
-          v.name.toLowerCase().includes('heera')
+      // Group English voices first for high pronunciation accuracy
+      const englishVoices = allVoices.filter(
+        (v) => v.lang.toLowerCase().startsWith('en') && !v.lang.toLowerCase().startsWith('hi')
       );
 
-      // Fallback to female English voice
-      const femaleVoice = voices.find(
+      // Sort voices: English first (Natural/Online at the top), followed by others
+      const sortedVoices = [...allVoices].sort((a, b) => {
+        const aIsEn = a.lang.toLowerCase().startsWith('en');
+        const bIsEn = b.lang.toLowerCase().startsWith('en');
+        const aIsNatural = a.name.toLowerCase().includes('natural') || a.name.toLowerCase().includes('online');
+        const bIsNatural = b.name.toLowerCase().includes('natural') || b.name.toLowerCase().includes('online');
+
+        if (aIsNatural && !bIsNatural) return -1;
+        if (!aIsNatural && bIsNatural) return 1;
+        if (aIsEn && !bIsEn) return -1;
+        if (!aIsEn && bIsEn) return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      setAvailableVoices(sortedVoices);
+
+      // 1. Prioritize Natural / Neural English Voices (Edge, Chrome, Mac)
+      const naturalEnglishVoice = englishVoices.find(
         (v) =>
-          v.lang.startsWith('en') &&
-          (v.name.toLowerCase().includes('female') ||
-            v.name.toLowerCase().includes('zira') ||
-            v.name.toLowerCase().includes('samantha') ||
-            v.name.toLowerCase().includes('karen'))
+          v.name.toLowerCase().includes('natural') ||
+          v.name.toLowerCase().includes('online') ||
+          v.name.toLowerCase().includes('neural')
       );
 
-      const defaultVoice = indianVoice || femaleVoice || voices.find((v) => v.lang.startsWith('en')) || voices[0];
-      setSelectedVoice((prev) => prev || defaultVoice || null);
+      // 2. High clarity Indian English voices (strictly English, never hi-IN)
+      const indianEnglishVoice = englishVoices.find(
+        (v) =>
+          (v.lang.toLowerCase().includes('en-in') ||
+            v.name.toLowerCase().includes('india') ||
+            v.name.toLowerCase().includes('neerja')) &&
+          !v.lang.toLowerCase().startsWith('hi')
+      );
+
+      // 3. Clear Google English voices
+      const googleEnglishVoice = englishVoices.find((v) =>
+        v.name.toLowerCase().includes('google')
+      );
+
+      // 4. Quality standard English voices (Samantha, Zira, Jenny)
+      const standardEnglishVoice = englishVoices.find(
+        (v) =>
+          v.name.toLowerCase().includes('zira') ||
+          v.name.toLowerCase().includes('samantha') ||
+          v.name.toLowerCase().includes('jenny') ||
+          v.name.toLowerCase().includes('female')
+      );
+
+      const defaultVoice =
+        naturalEnglishVoice ||
+        indianEnglishVoice ||
+        googleEnglishVoice ||
+        standardEnglishVoice ||
+        englishVoices[0] ||
+        allVoices[0];
+
+      setSelectedVoice(defaultVoice || null);
     };
 
     updateVoices();
@@ -94,13 +154,21 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
     return () => {
       if (synthRef.current) synthRef.current.cancel();
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      if (audioCooldownTimerRef.current) clearTimeout(audioCooldownTimerRef.current);
     };
   }, []);
 
-  // Voice Visualizer for Mic input
+  // Voice Visualizer for Mic input with Acoustic Echo Cancellation
   const setupAudioVisualizer = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
       micStreamRef.current = stream;
 
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -150,7 +218,7 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
   // Safely start Speech Recognition
   const startRecognitionSafe = useCallback(() => {
     if (!recognitionRef.current || !isCallActiveRef.current) return;
-    if (isSpeakingRef.current) return; // Prevent mic while speaking to avoid audio loopback
+    if (isSpeakingRef.current || stateRef.current === 'speaking' || stateRef.current === 'thinking') return;
     try {
       recognitionRef.current.start();
     } catch (e: any) {
@@ -158,15 +226,19 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
     }
   }, []);
 
-  // Safely stop Speech Recognition
+  // Safely stop Speech Recognition with hard abort to discard in-flight speaker feedback
   const stopRecognitionSafe = useCallback(() => {
     if (!recognitionRef.current) return;
     try {
-      recognitionRef.current.stop();
-    } catch (e: any) {}
+      recognitionRef.current.abort();
+    } catch (e: any) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e2) {}
+    }
   }, []);
 
-  // Speak agent message using Web SpeechSynthesis with Chrome keep-alive & echo prevention
+  // Speak agent message using Web SpeechSynthesis with Chrome keep-alive, echo prevention, and text sanitization
   const speakAgentResponse = useCallback(
     (text: string, onEndCallback?: () => void) => {
       if (!synthRef.current) {
@@ -174,26 +246,43 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
         return;
       }
 
-      // 1. Temporarily pause recognition to prevent mic from hearing computer speakers
+      // 1. Immediately lock speaking state and abort recognition to prevent laptop speaker from echoing into mic
+      isSpeakingRef.current = true;
+      setState('speaking');
       stopRecognitionSafe();
 
-      // 2. Clear any pending silence timers
+      // 2. Clear any pending silence or cooldown timers
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = null;
       }
+      if (audioCooldownTimerRef.current) {
+        clearTimeout(audioCooldownTimerRef.current);
+        audioCooldownTimerRef.current = null;
+      }
 
-      // 3. Cancel previous speech and resume (fixes Chrome pause bug)
-      synthRef.current.cancel();
-      synthRef.current.resume();
+      // 3. Cancel previous speech if running, and resume if paused
+      if (synthRef.current.speaking || synthRef.current.pending) {
+        synthRef.current.cancel();
+      }
+      if (synthRef.current.paused) {
+        synthRef.current.resume();
+      }
 
-      const utterance = new SpeechSynthesisUtterance(text);
+      // 4. Sanitize text so words like "summer", product IDs, and numbers pronounce accurately
+      const cleanSpokenText = cleanTextForSpeech(text);
+      const utterance = new SpeechSynthesisUtterance(cleanSpokenText);
+
       if (selectedVoice) {
         utterance.voice = selectedVoice;
+        utterance.lang = selectedVoice.lang;
+      } else {
+        utterance.lang = 'en-IN';
       }
-      utterance.lang = selectedVoice?.lang || 'en-IN';
-      utterance.rate = 1.0;
-      utterance.pitch = 1.05;
+
+      // Pitch 1.0 (neutral natural pitch prevents robotic distortion); rate 0.98 for optimal diction
+      utterance.rate = 0.98;
+      utterance.pitch = 1.0;
 
       // Keep reference alive so Chrome V8 garbage collector does not destroy it mid-speech
       activeUtteranceRef.current = utterance;
@@ -209,12 +298,12 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
         activeUtteranceRef.current = null;
         if (isCallActiveRef.current) {
           setState('listening');
-          // Short 200ms grace period after audio stops before resuming mic
-          setTimeout(() => {
-            if (isCallActiveRef.current && !isSpeakingRef.current) {
+          // 350ms echo absorption cooldown after speech ends before unmuting mic
+          audioCooldownTimerRef.current = setTimeout(() => {
+            if (isCallActiveRef.current && !isSpeakingRef.current && stateRef.current === 'listening') {
               startRecognitionSafe();
             }
-          }, 200);
+          }, 350);
         }
         if (onEndCallback) onEndCallback();
       };
@@ -285,7 +374,7 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
         });
 
         const data = await res.json();
-        const agentResponseText = data.response || "I'm happy to help. Could you please specify your query?";
+        const agentResponseText = data.response || "I am happy to help. Could you please specify your query?";
 
         if (data.toolCalled) {
           setCurrentToolCall(data.toolCalled);
@@ -317,7 +406,7 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
         const errorMsg: TranscriptMessage = {
           id: `agent-err-${Date.now()}`,
           sender: 'agent',
-          text: "I couldn't quite catch that. Could you please repeat your question?",
+          text: "I could not quite catch that. Could you please repeat your question?",
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         };
         setTranscript((prev) => [...prev, errorMsg]);
@@ -327,7 +416,7 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
     [apiKey, provider, speakAgentResponse, stopRecognitionSafe]
   );
 
-  // Set up SpeechRecognition instance with silence debounce timer
+  // Set up SpeechRecognition instance with responsive silence timer
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -341,7 +430,7 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'en-IN'; // Indian English priority
+    recognition.lang = selectedVoice?.lang?.startsWith('en') ? selectedVoice.lang : 'en-IN';
 
     recognition.onstart = () => {
       if (!isSpeakingRef.current && stateRef.current !== 'thinking') {
@@ -350,8 +439,10 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
     };
 
     recognition.onresult = (event: any) => {
-      // If agent is speaking, ignore mic input to prevent speaker-mic echo loop
-      if (isSpeakingRef.current) return;
+      // If agent is speaking or processing, immediately drop mic input to prevent acoustic feedback loop
+      if (isSpeakingRef.current || stateRef.current === 'speaking' || stateRef.current === 'thinking') {
+        return;
+      }
 
       let finalSpeech = '';
       let interim = '';
@@ -377,9 +468,7 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
         interimBufferRef.current = interim.trim();
         setInterimText(interim);
 
-        // SILENCE DEBOUNCE TIMER:
-        // If user says "ORD 102" and stops speaking without an explicit isFinal event,
-        // automatically commit the interim speech after 900ms of silence!
+        // Responsive 500ms silence timer (reduced from 900ms to eliminate voice lag)
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = setTimeout(() => {
           if (interimBufferRef.current && !isSpeakingRef.current && stateRef.current !== 'thinking') {
@@ -388,7 +477,7 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
             setInterimText('');
             processUserSpeech(captured);
           }
-        }, 900);
+        }, 500);
       }
     };
 
@@ -399,8 +488,8 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
     };
 
     recognition.onend = () => {
-      // Auto-restart if call is still active and agent is not speaking or thinking
-      if (isCallActiveRef.current && !isSpeakingRef.current && stateRef.current !== 'thinking') {
+      // Auto-restart only if call is active and agent is actively in listening state
+      if (isCallActiveRef.current && !isSpeakingRef.current && stateRef.current === 'listening') {
         startRecognitionSafe();
       }
     };
@@ -410,10 +499,10 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
     return () => {
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       try {
-        recognition.stop();
+        recognition.abort();
       } catch (e) {}
     };
-  }, [processUserSpeech, startRecognitionSafe]);
+  }, [processUserSpeech, startRecognitionSafe, selectedVoice]);
 
   // Start Call Handler
   const startCall = async () => {
@@ -428,8 +517,8 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
 
     const firstName = customerName ? customerName.split(' ')[0] : '';
     const greetingText = firstName
-      ? `Namaste ${firstName}! I'm Aria from Aura Skincare. How can I help you today?`
-      : "Namaste! I'm Aria from Aura Skincare. How can I help you today?";
+      ? `Namaste ${firstName}! I am Aria from Aura Skincare. How can I help you today?`
+      : "Namaste! I am Aria from Aura Skincare. How can I help you today?";
     const initialMsg: TranscriptMessage = {
       id: `agent-welcome-${Date.now()}`,
       sender: 'agent',
@@ -454,6 +543,10 @@ export function useVoiceAgent({ apiKey, provider = 'groq', customerName, onState
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
+    }
+    if (audioCooldownTimerRef.current) {
+      clearTimeout(audioCooldownTimerRef.current);
+      audioCooldownTimerRef.current = null;
     }
 
     if (synthRef.current) {
