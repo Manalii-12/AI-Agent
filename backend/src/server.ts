@@ -17,7 +17,7 @@ import { seedDatabase } from './seed';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000;
 
 // Enable CORS for frontend (Vercel deployment + Localhost)
 app.use(
@@ -58,7 +58,7 @@ app.post('/api/summary', createCallSummary);
 app.get('/api/summaries', getAllCallSummaries);
 
 // Boot server and auto-seed if empty
-app.listen(PORT, async () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Aura Skincare Node.js Backend listening on port ${PORT}`);
   try {
     if (process.env.AUTO_SEED !== 'false') {
