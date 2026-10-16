@@ -117,7 +117,7 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
 
   // 0. Detect Hinglish / Hindi Code-Switching with exact word boundaries
   const isHinglish =
-    /\b(mera|meri|mere|aaya|aayega|aayi|nahi|nahin|kab|kya|kar do|karo|karna|hoga|hogi|hai|hain|chahiye|batao|batayein|kaise|namaste|shukriya|dhanyawad|kripya|sakte|aapka|aapki|humari|kahan)\b/i.test(
+    /\b(mera|meri|mere|aaya|aayega|aayi|nahi|nahin|kab|kya|kar do|karo|karna|hoga|hogi|hai|hain|chahiye|batao|batayein|kaise|namaste|shukriya|dhanyawad|kripya|sakte|aapka|aapki|humari|kahan|khol|khula|wapas|pehle|liya|kharida|daal|daalo|garmi|dhoop|bataiye|dijiye|theek|kuch)\b/i.test(
       query
     );
 
@@ -275,6 +275,8 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
           reply = "Aapka order ORD-103 abhi Processing status mein hai aur 3 ghante pehle place hua tha.";
         } else if (toolRes.success && toolRes.data) {
           reply = `Aapka order ${normalizedId} abhi ${toolRes.data.status} status mein hai.`;
+        } else {
+          reply = "Mujhe us number ka koi order nahi mila, kya aap kripya apna Order ID dobara repeat ya verify kar sakte hain?";
         }
       }
 

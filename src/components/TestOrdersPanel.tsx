@@ -268,6 +268,20 @@ export const TestOrdersPanel: React.FC<TestOrdersPanelProps> = ({ onSelectPrompt
             🇮🇳 &quot;Mera ORD-101 kab tak aayega?&quot;
           </button>
           <button
+            onClick={() => handleChipClick("Maine yeh product 20 din pehle liya tha aur open kar diya hai, kya return hoga?")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-950 border border-rose-200 transition cursor-pointer font-medium"
+            title="Tests Hinglish Policy Enforcement: 20 days opened return refusal"
+          >
+            🇮🇳 &quot;20 din pehle liya aur khol diya, return hoga?&quot;
+          </button>
+          <button
+            onClick={() => handleChipClick("Sunscreen cart mein add kar do")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 transition cursor-pointer font-medium"
+            title="Tests Hinglish Voice Cart: Adds sunscreen into bag"
+          >
+            🇮🇳 &quot;Sunscreen cart mein add kar do&quot;
+          </button>
+          <button
             onClick={() => handleChipClick("What are your shipping charges?")}
             className="text-[10px] px-2.5 py-1 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer font-medium"
           >
