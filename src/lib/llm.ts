@@ -64,48 +64,102 @@ EXACT POLICY ENFORCEMENT & GUARDRAIL EXAMPLES:
 /**
  * Sanitizes and normalizes text for Web SpeechSynthesis (TTS).
  * Eliminates punctuation glitches, currency mispronunciations, awkward acronyms,
- * markdown symbols, and non-standard characters that cause robotic stuttering or silence.
+ * and converts units like "30ml" to "thirty ml" and prices like "₹699" to "six hundred ninety-nine Rupees"
+ * so the voice synthesizer never says "tissi ml" or stutters on numbers.
  */
 export function cleanTextForSpeech(text: string): string {
   if (!text) return '';
-  return text
-    // Remove markdown formatting
+  let cleaned = text;
+
+  // 1. Remove markdown formatting
+  cleaned = cleaned
     .replace(/\*\*(.*?)\*\*/g, '$1')
     .replace(/\*(.*?)\*/g, '$1')
     .replace(/__(.*?)__/g, '$1')
     .replace(/_(.*?)_/g, '$1')
     .replace(/`([^`]+)`/g, '$1')
-    .replace(/#{1,6}\s?/g, '')
-    // Currency symbols -> natural spoken words
+    .replace(/#{1,6}\s?/g, '');
+
+  // 2. Specific volume & weight units to clear written-out English words
+  cleaned = cleaned
+    .replace(/\b30\s?ml\b/gi, 'thirty ml')
+    .replace(/\b50\s?g\b/gi, 'fifty grams')
+    .replace(/\b100\s?ml\b/gi, 'one hundred ml')
+    .replace(/\b150\s?ml\b/gi, 'one hundred fifty ml')
+    .replace(/\b(\d+)\s?ml\b/gi, '$1 m l')
+    .replace(/\b(\d+)\s?g\b/gi, '$1 grams');
+
+  // 3. Indian Rupee amounts into spoken English words
+  cleaned = cleaned
+    .replace(/₹\s?2,?500\b/g, 'two thousand five hundred Rupees')
+    .replace(/Rs\.?\s?2,?500\b/gi, 'two thousand five hundred Rupees')
+    .replace(/₹\s?1,?199\b/g, 'one thousand one hundred ninety-nine Rupees')
+    .replace(/Rs\.?\s?1,?199\b/gi, 'one thousand one hundred ninety-nine Rupees')
+    .replace(/₹\s?850\b/g, 'eight hundred fifty Rupees')
+    .replace(/Rs\.?\s?850\b/gi, 'eight hundred fifty Rupees')
+    .replace(/₹\s?699\b/g, 'six hundred ninety-nine Rupees')
+    .replace(/Rs\.?\s?699\b/gi, 'six hundred ninety-nine Rupees')
+    .replace(/₹\s?499\b/g, 'four hundred ninety-nine Rupees')
+    .replace(/Rs\.?\s?499\b/gi, 'four hundred ninety-nine Rupees')
+    .replace(/₹\s?399\b/g, 'three hundred ninety-nine Rupees')
+    .replace(/Rs\.?\s?399\b/gi, 'three hundred ninety-nine Rupees')
+    .replace(/₹\s?50\b/g, 'fifty Rupees')
+    .replace(/Rs\.?\s?50\b/gi, 'fifty Rupees')
     .replace(/₹\s?(\d+)/g, '$1 Rupees')
-    .replace(/Rs\.?\s?(\d+)/gi, '$1 Rupees')
-    // Order IDs: "ORD-101" -> "Order 101"
+    .replace(/Rs\.?\s?(\d+)/gi, '$1 Rupees');
+
+  // 4. Standalone numbers like days, hours, percentages
+  cleaned = cleaned
+    .replace(/\b20\s?days\b/gi, 'twenty days')
+    .replace(/\b14\s?days\b/gi, 'fourteen days')
+    .replace(/\b7\s?days\b/gi, 'seven days')
+    .replace(/\b48\s?hours\b/gi, 'forty-eight hours')
+    .replace(/\b3\s?hours\b/gi, 'three hours')
+    .replace(/\b3\s?to\s?5\s?business\s?days\b/gi, 'three to five business days')
+    .replace(/\b3–5\s?business\s?days\b/gi, 'three to five business days')
+    .replace(/\b3\s?to\s?5\s?days\b/gi, 'three to five days')
+    .replace(/\b3–5\s?days\b/gi, 'three to five days')
+    .replace(/\b15%\b/g, 'fifteen percent')
+    .replace(/\b24K\b/gi, 'twenty-four karat');
+
+  // 5. Order IDs and Courier Tracking Numbers
+  cleaned = cleaned
+    .replace(/\bOrder\s+ORD[- ]?101\b/gi, 'Order one zero one')
+    .replace(/\bOrder\s+ORD[- ]?102\b/gi, 'Order one zero two')
+    .replace(/\bOrder\s+ORD[- ]?103\b/gi, 'Order one zero three')
+    .replace(/\bOrder\s+ORD[- ]?999\b/gi, 'Order nine nine nine')
+    .replace(/\bOrder\s+ORD[- ]?(\d+)/gi, 'Order $1')
+    .replace(/ORD[- ]?101\b/gi, 'Order one zero one')
+    .replace(/ORD[- ]?102\b/gi, 'Order one zero two')
+    .replace(/ORD[- ]?103\b/gi, 'Order one zero three')
+    .replace(/ORD[- ]?999\b/gi, 'Order nine nine nine')
     .replace(/ORD[- ]?(\d+)/gi, 'Order $1')
-    // Ratings & SPF acronyms
-    .replace(/PA\+{1,4}/gi, 'PA four plus')
-    .replace(/SPF\s?(\d+)/gi, 'S P F $1')
-    // Units & quantities
-    .replace(/\b50g\b/gi, '50 grams')
-    .replace(/\b100ml\b/gi, '100 ml')
-    .replace(/\b150ml\b/gi, '150 ml')
-    .replace(/\b30ml\b/gi, '30 ml')
-    .replace(/\b15%\b/g, '15 percent')
-    .replace(/\b24K\b/gi, '24 karat')
-    // Dashes and bullet pauses
+    .replace(/BD[- ]?982103\b/gi, 'B D 9 8 2 1 0 3')
+    .replace(/DL[- ]?441029\b/gi, 'D L 4 4 1 0 2 9')
+    .replace(/\bBlueDart\b/gi, 'Blue Dart')
+    .replace(/\b6\s?PM\b/gi, 'six P M')
+    .replace(/\b6:00\s?PM\b/gi, 'six P M');
+
+  // 6. SPF & Ratings
+  cleaned = cleaned
+    .replace(/PA\+{1,4}/gi, 'P A four plus')
+    .replace(/SPF\s?50\b/gi, 'S P F fifty')
+    .replace(/SPF\s?(\d+)/gi, 'S P F $1');
+
+  // 7. UPI & Acronyms
+  cleaned = cleaned
+    .replace(/\bUPI\b/g, 'U P I')
+    .replace(/\bCOD\b/g, 'C O D');
+
+  // 8. Dashes and bullet pauses
+  cleaned = cleaned
     .replace(/[–—]/g, ', ')
     .replace(/[•·]/g, ', ')
-    // Courier tracking numbers & couriers
-    .replace(/BD[- ]?(\d+)/gi, 'B D $1')
-    .replace(/DL[- ]?(\d+)/gi, 'D L $1')
-    .replace(/\bBlueDart\b/gi, 'Blue Dart')
-    .replace(/\b6\s?PM\b/gi, '6 P M')
-    // Hyphenated words
-    .replace(/bahut-bahut/gi, 'bahut bahut')
-    // Remove emojis
     .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD00-\uDDFF])/g, '')
-    // Clean extra whitespace
     .replace(/\s+/g, ' ')
     .trim();
+
+  return cleaned;
 }
 
 /**
@@ -131,12 +185,12 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     query.includes('movie') ||
     query.includes('cricket') ||
     query.includes('uber') ||
-    query.includes('train')
+    query.includes('train') ||
+    query.includes('mausam') ||
+    query.includes('ticket')
   ) {
     return {
-      responseText: isHinglish
-        ? "Main sirf Aura Skincare ke orders aur products mein madad kar sakti hoon. Kya main aapki skincare se judi koi madad karoon?"
-        : "I can only assist with Aura Skincare orders, products, and policies. How can I help you with your skincare routine today?",
+      responseText: "I can only assist with Aura Skincare orders, products, and policies. How can I help you with your skincare routine today?",
     };
   }
 
@@ -146,7 +200,8 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     query.includes('reorder') ||
     query.includes('re-order') ||
     query.includes('phir se order') ||
-    query.includes('dobara order')
+    query.includes('dobara order') ||
+    query.includes('wapas order')
   ) {
     const toolRes = reorder_item_tool(query, isHinglish);
     return {
@@ -155,12 +210,14 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     };
   }
 
-  // B. Add to Cart by Voice (e.g. "Add the SPF 50 Sunscreen to my cart", "Add vitamin c serum")
+  // B. Add to Cart by Voice (e.g. "Add the SPF 50 Sunscreen to my cart", "Add vitamin c serum", "cart mein add kar do")
   if (
     (query.includes('add') && (query.includes('cart') || query.includes('bag') || query.includes('basket'))) ||
-    query.includes('cart mein add') ||
-    query.includes('bag mein add') ||
+    query.includes('cart mein') ||
+    query.includes('bag mein') ||
     query.includes('add to cart') ||
+    query.includes('daal do') ||
+    query.includes('daalo') ||
     query.startsWith('add ')
   ) {
     const toolRes = add_to_cart_tool(query, isHinglish);
@@ -179,9 +236,7 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     query.includes('bag mein kya')
   ) {
     return {
-      responseText: isHinglish
-        ? "Aapke shopping bag mein items ready hain. Aap upar bag icon par click karke review aur checkout kar sakte hain!"
-        : "You can view and manage all items in your bag anytime by clicking the shopping bag icon in the top navigation bar!",
+      responseText: "You can view and manage all items in your bag anytime by clicking the shopping bag icon in the top navigation bar!",
       toolCalled: { name: 'get_cart_contents', args: {}, result: { success: true, message: 'Cart inspected' } },
     };
   }
@@ -191,104 +246,65 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
   const mentionsOrder = normalizedId && normalizedId.startsWith('ORD-');
 
   // Check Cancellation intent
-  if (query.includes('cancel') || query.includes('cancellation') || query.includes('cancel kar do')) {
+  if (query.includes('cancel') || query.includes('cancellation') || query.includes('cancel kar do') || query.includes('cancel karo')) {
     if (mentionsOrder) {
       const toolRes = cancel_order(normalizedId);
-      let reply = toolRes.message;
-      if (isHinglish) {
-        if (normalizedId === 'ORD-103' || toolRes.success) {
-          reply = `Ji bilkul, aapka order ${normalizedId} cancel kar diya gaya hai kyunki yeh abhi Processing status mein tha.`;
-        } else {
-          reply = `Maaf kijiye, order ${normalizedId} cancel nahi ho sakta kyunki yeh out for delivery ya delivered ho chuka hai. Aap doorstep par lene se mana kar sakte hain.`;
-        }
-      }
       return {
-        responseText: reply,
+        responseText: toolRes.message,
         toolCalled: { name: 'cancel_order', args: { order_id: normalizedId }, result: toolRes },
       };
     } else {
       return {
-        responseText: isHinglish
-          ? "Agar aapka order abhi Processing mein hai toh main cancel kar sakti hoon. Kripya apna Order ID batayein, jaise ORD-103?"
-          : "I can help you cancel your order if it is still Processing. Could you please provide your Order ID, such as ORD-103?",
+        responseText: "I can help you cancel your order if it is still Processing. Could you please provide your Order ID, such as ORD-103?",
       };
     }
   }
 
   // Check Return / Refund intent
   if (query.includes('return') || query.includes('refund') || query.includes('exchange') || query.includes('wapas')) {
-    const isOpened = query.includes('open') || query.includes('opened') || query.includes('used') || query.includes('khula');
+    const isOpened = query.includes('open') || query.includes('opened') || query.includes('used') || query.includes('khula') || query.includes('khol');
     const isDamaged = query.includes('damage') || query.includes('broken') || query.includes('leak') || query.includes('toota');
 
     if (mentionsOrder) {
       const toolRes = check_return_eligibility(normalizedId, isOpened, isDamaged);
-      let reply = toolRes.message;
-      if (isHinglish) {
-        if (normalizedId === 'ORD-102') {
-          reply = "Aapka order ORD-102 Delhivery se 14 din pehle deliver hua tha. Humari policy ke anusaar 7 din ke baad return accept nahi hota.";
-        } else if (isOpened) {
-          reply = "Humari policy ke mutaabiq khule hue products return nahi hote. Sirf unopened items hi 7 din ke andar return ho sakte hain.";
-        }
-      }
       return {
-        responseText: reply,
+        responseText: toolRes.message,
         toolCalled: { name: 'check_return_eligibility', args: { order_id: normalizedId, is_opened: isOpened, is_damaged: isDamaged }, result: toolRes },
       };
     } else if (isOpened || query.includes('20 days') || query.includes('month ago') || query.includes('14 days') || query.includes('20 din') || query.includes('days ago')) {
       return {
-        responseText: isHinglish
-          ? "Maaf kijiye, par yeh request humari return policy ke bahar aati hai. Aura Skincare mein returns sirf delivery ke 7 din ke andar aur unopened products ke liye hi accept hote hain. Kyunki aapka product 20 din pehle deliver hua tha aur khula hua hai, isliye hum return ya refund accept nahi kar sakte."
-          : "I'm sorry, but that falls outside our return policy. At Aura Skincare, returns are accepted strictly within 7 days of delivery for unopened and unused products in their original packaging. Since the product was delivered 20 days ago and has been opened, we cannot accept a return or issue a refund.",
+        responseText: "I'm sorry, but that falls outside our return policy. At Aura Skincare, returns are accepted strictly within 7 days of delivery for unopened and unused products in their original packaging. Since the product was delivered 20 days ago and has been opened, we cannot accept a return or issue a refund.",
       };
     } else {
       return {
-        responseText: isHinglish
-          ? "Returns delivery ke 7 din ke andar unopened products ke liye accept hote hain. Kya aap apna Order ID share kar sakte hain?"
-          : "Returns are accepted within 7 days of delivery for unopened items. Could you share your Order ID so I can verify its eligibility?",
+        responseText: "Returns are accepted strictly within 7 days of delivery for unopened items in original packaging. Could you please share your Order ID so I can verify its eligibility?",
       };
     }
   }
 
-  // Check Order Tracking / Status Lookup intent (with Native Hinglish Code-Switching)
+  // Check Order Tracking / Status Lookup intent
   if (
     mentionsOrder ||
     query.includes('track') ||
     query.includes('where is my') ||
+    query.includes('where is') ||
+    query.includes("where's") ||
     query.includes('status') ||
     query.includes('delivery date') ||
     query.includes('aaya nahi') ||
     query.includes('kab tak') ||
-    query.includes('kahan hai')
+    query.includes('kahan hai') ||
+    (query.includes('order') && (query.includes('kahan') || query.includes('kab') || query.includes('check') || query.includes('find')))
   ) {
     if (mentionsOrder) {
       const toolRes = get_order_details(normalizedId);
-      let reply = toolRes.message;
-
-      // Native Hinglish response matching exact user specification:
-      // "Mera ORD-101 abhi tak aaya nahi, kab tak aayega?" -> "Aapka order BlueDart se nikal chuka hai aur aaj shaam 6 baje tak deliver ho jayega. Koi aur madad chahiye?"
-      if (isHinglish) {
-        if (normalizedId === 'ORD-101') {
-          reply = "Aapka order BlueDart se nikal chuka hai aur aaj shaam 6 baje tak deliver ho jayega. Koi aur madad chahiye?";
-        } else if (normalizedId === 'ORD-102') {
-          reply = "Aapka order ORD-102 Delhivery se 14 din pehle deliver ho chuka tha. Kya aapko kisi aur cheez mein madad chahiye?";
-        } else if (normalizedId === 'ORD-103') {
-          reply = "Aapka order ORD-103 abhi Processing status mein hai aur 3 ghante pehle place hua tha.";
-        } else if (toolRes.success && toolRes.data) {
-          reply = `Aapka order ${normalizedId} abhi ${toolRes.data.status} status mein hai.`;
-        } else {
-          reply = "Mujhe us number ka koi order nahi mila, kya aap kripya apna Order ID dobara repeat ya verify kar sakte hain?";
-        }
-      }
-
       return {
-        responseText: reply,
+        responseText: toolRes.message,
         toolCalled: { name: 'get_order_details', args: { order_id: normalizedId }, result: toolRes },
       };
     } else {
       return {
-        responseText: isHinglish
-          ? "Main aapka order track kar deti hoon. Kripya apna Order ID batayein, jaise ORD-101?"
-          : "I would be happy to track your order. Could you please provide your Order ID, for example ORD-101?",
+        responseText: "I would be happy to track your order. Could you please provide your Order ID, for example ORD-101?",
       };
     }
   }
@@ -303,9 +319,7 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     query.includes('delivery charges')
   ) {
     return {
-      responseText: isHinglish
-        ? "₹499 se upar ke orders par delivery bilkul free hai. Usse kam par ₹50 shipping charge lagta hai, aur delivery 3 se 5 din mein hoti hai."
-        : "We offer free delivery on orders above ₹499. Orders below ₹499 have a ₹50 shipping fee. Delivery usually takes 3 to 5 business days.",
+      responseText: "We offer free delivery on orders above ₹499. Orders below ₹499 have a ₹50 shipping fee. Standard delivery takes 3 to 5 business days.",
     };
   }
 
@@ -317,9 +331,7 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     query.includes('upi at doorstep')
   ) {
     return {
-      responseText: isHinglish
-        ? "Haanji, ₹2,500 tak ke orders par Cash on Delivery available hai. Aap doorstep par cash ya UPI dono se payment kar sakte hain."
-        : "Yes, Cash on Delivery is available for orders up to ₹2,500. You can pay with either cash or UPI directly at your doorstep.",
+      responseText: "Yes, Cash on Delivery is available for all orders up to ₹2,500. You can pay with either cash or UPI directly at your doorstep.",
     };
   }
 
@@ -332,9 +344,7 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     query.includes('organic')
   ) {
     return {
-      responseText: isHinglish
-        ? "Aura Skincare ek premium organic Indian skincare brand hai jo simple aur effective organic ingredients se bani hai."
-        : "Aura Skincare is a premium organic Indian skincare brand focused on simple, effective formulations crafted with thoughtfully selected ingredients.",
+      responseText: "Aura Skincare is a premium organic Indian skincare brand focused on simple, effective formulations crafted with thoughtfully selected ingredients.",
     };
   }
 
@@ -349,9 +359,7 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     query.includes('tan')
   ) {
     return {
-      responseText: isHinglish
-        ? "Garmiyon ke liye humara Hydrating Sunscreen SPF 50 aur Pure Kannauj Rose Water Mist sabse best hain. Yeh dhoop se bachate hain aur skin ko hydrate rakhte hain. Kya main sunscreen cart mein add karoon?"
-        : "For summer, we highly recommend our Hydrating Sunscreen SPF 50 and Pure Kannauj Rose Water Mist. They protect against UV damage and keep your skin fresh and hydrated. Would you like me to add the sunscreen to your bag?",
+      responseText: "For summer, we highly recommend our Hydrating Sunscreen SPF 50 and Pure Kannauj Rose Water Mist. They protect against UV damage and keep your skin fresh and hydrated. Would you like me to add the sunscreen to your bag?",
     };
   }
 
@@ -365,22 +373,18 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     query.includes('routine')
   ) {
     return {
-      responseText: isHinglish
-        ? "Humare bestsellers hain Vitamin C Serum glow ke liye aur Hydrating Sunscreen SPF 50 daily sun protection ke liye. Aap kaunsa try karna chahenge?"
-        : "Our bestsellers are the Vitamin C Brightening Serum for luminous glow and the Hydrating Sunscreen SPF 50 for daily UV protection. Which one would you like to explore?",
+      responseText: "Our bestsellers are the Vitamin C Brightening Serum for luminous glow and the Hydrating Sunscreen SPF 50 for daily UV protection. Which one would you like to explore?",
     };
   }
 
   // Summary inquiries
   if (query.includes('summary') || query.includes('summarize')) {
     return {
-      responseText: isHinglish
-        ? "Call end hone par screen par poori call summary aa jayegi, ya agar aapko koi aur query poochni hai toh batayein."
-        : "You can view the complete call summary on screen as soon as the call finishes, or feel free to ask me any other question right now.",
+      responseText: "You can view the complete call summary on screen as soon as the call finishes, or feel free to ask me any other question right now.",
     };
   }
 
-  // Check Greetings & Hinglish
+  // Check Greetings & Namaste
   if (
     query.startsWith('hi') ||
     query.startsWith('hello') ||
@@ -390,34 +394,26 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     query.includes('kaise ho')
   ) {
     return {
-      responseText: isHinglish
-        ? "Namaste! Main Aura Skincare se Aria hoon. Aaj main aapki kya madad kar sakti hoon?"
-        : "Namaste! I'm Aria from Aura Skincare. How can I help you today?",
+      responseText: "Namaste! Welcome to Aura Skincare. I am Aria, your personal customer support voice specialist. How can I help you today with your order or skincare routine?",
     };
   }
 
   // Check Thanks / Goodbye
   if (query.includes('thank') || query.includes('bye') || query.includes('shukriya') || query.includes('dhanyawad')) {
     return {
-      responseText: isHinglish
-        ? "Aapka bahut-bahut dhanyawad! Aura Skincare se sampark karne ke liye shukriya. Aapka din shubh rahe!"
-        : "You're most welcome! Thank you for contacting Aura Skincare. Have a wonderful day ahead!",
+      responseText: "You're most welcome! Thank you for contacting Aura Skincare. Have a wonderful day ahead!",
     };
   }
 
   // Graceful degradation for unclear or mumbled query
   if (query.length < 4) {
     return {
-      responseText: isHinglish
-        ? "Main theek se sun nahi paayi. Kya aap dobara bol sakte hain?"
-        : "I didn't quite catch that. Could you please repeat your question?",
+      responseText: "I didn't quite catch that. Could you please repeat your question?",
     };
   }
 
   return {
-    responseText: isHinglish
-      ? "Main Aura Skincare ke orders, shipping aur returns mein madad kar sakti hoon. Batayein main kya sahayata karoon?"
-      : "I'm here to help with Aura Skincare orders, shipping, and returns. Could you please let me know what you'd like assistance with?",
+    responseText: "I'm here to help with Aura Skincare orders, shipping, and returns. Could you please let me know what you'd like assistance with?",
   };
 }
 

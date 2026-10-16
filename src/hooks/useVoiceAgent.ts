@@ -78,14 +78,25 @@ export function useVoiceAgent({
         // Filter valid voices
         const validVoices = allVoices.filter((v) => v && typeof v.name === 'string');
 
-        // Helper to identify Indian English / Indian voices (PDF: "preferably in an Indian voice")
+        // Filter strictly English-capable voices so words like "thirty ml" and prices are pronounced with proper English diction
+        const englishVoices = validVoices.filter((v) => {
+          const l = (v.lang || '').toLowerCase();
+          // Exclude raw Hindi, Bengali, Marathi, etc. which corrupt English phonetics
+          if (l.startsWith('hi') || l.startsWith('bn') || l.startsWith('mr') || l.startsWith('ta')) {
+            return false;
+          }
+          return l.startsWith('en') || l === '';
+        });
+
+        // Helper to identify Indian English voices (as required by DataStraw PDF: "preferably in an Indian voice")
         const isIndianVoice = (v: SpeechSynthesisVoice) => {
           const l = (v.lang || '').toLowerCase();
           const n = (v.name || '').toLowerCase();
+          if (l.startsWith('hi') || l.startsWith('mr') || l.startsWith('bn') || l.startsWith('ta')) {
+            return false;
+          }
           return (
             l.includes('en-in') ||
-            l.includes('hi-in') ||
-            l === 'hi' ||
             n.includes('india') ||
             n.includes('neerja') ||
             n.includes('prabhat') ||
@@ -100,14 +111,11 @@ export function useVoiceAgent({
           );
         };
 
-        const indianVoices = validVoices.filter(isIndianVoice);
-        const englishVoices = validVoices.filter((v) => {
-          const lang = (v.lang || '').toLowerCase();
-          return lang.startsWith('en');
-        });
+        const indianVoices = englishVoices.filter(isIndianVoice);
+        const candidateVoices = englishVoices.length > 0 ? englishVoices : validVoices;
 
         // Sort voices safely: Indian English first (as required by PDF), then Natural English, then others
-        const sortedVoices = [...validVoices].sort((a, b) => {
+        const sortedVoices = [...candidateVoices].sort((a, b) => {
           const aIsInd = isIndianVoice(a);
           const bIsInd = isIndianVoice(b);
           if (aIsInd && !bIsInd) return -1;
@@ -119,13 +127,6 @@ export function useVoiceAgent({
           const bIsNatural = bName.includes('natural') || bName.includes('online') || bName.includes('neural');
           if (aIsNatural && !bIsNatural) return -1;
           if (!aIsNatural && bIsNatural) return 1;
-
-          const aLang = (a.lang || '').toLowerCase();
-          const bLang = (b.lang || '').toLowerCase();
-          const aIsEn = aLang.startsWith('en');
-          const bIsEn = bLang.startsWith('en');
-          if (aIsEn && !bIsEn) return -1;
-          if (!aIsEn && bIsEn) return 1;
 
           return (a.name || '').localeCompare(b.name || '');
         });
@@ -325,7 +326,8 @@ export function useVoiceAgent({
 
       if (selectedVoice) {
         utterance.voice = selectedVoice;
-        utterance.lang = selectedVoice.lang || 'en-IN';
+        const vLang = (selectedVoice.lang || '').toLowerCase();
+        utterance.lang = vLang.startsWith('en') ? selectedVoice.lang : 'en-IN';
       } else {
         utterance.lang = 'en-IN';
       }
