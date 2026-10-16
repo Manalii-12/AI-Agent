@@ -202,29 +202,4 @@ npm run build
 npm run start
 ```
 
----
 
-## Submission Email Draft
-
-```
-To: ozair.shaikh@datastraw.in, aryan.jaiswal@datastraw.in
-CC: talent@datastraw.in
-Subject: AI Voice Agent Assignment - [Your Full Name]
-
-Dear Ozair, Aryan, and the DataStraw Team,
-
-Please find my submission for the AI Voice Customer Support Agent hiring assignment for Aura Skincare:
-
-1. Live Application URL: https://ai-agent-gamma-orcin.vercel.app
-2. GitHub Repository: https://github.com/Manalii-12/AI-Agent
-3. Demo Video Link: [Your Loom or Drive link showing order lookup, policy checks, and call summary]
-4. LinkedIn Profile: [Your LinkedIn Profile URL]
-
-Brief Approach:
-I built a fast, browser-based voice customer support agent for Aura Skincare featuring an interactive voice visualizer, live barge-in interruption, and an Indian English persona (Aria). The agent uses a dual-engine architecture supporting both cloud LLMs and a zero-latency fallback that reliably enforces brand return, shipping, and cancellation policies with live tool calling and post-call structured summaries.
-
-Looking forward to your thoughts and feedback!
-
-Warm regards,
-[Your Full Name]
-```
