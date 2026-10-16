@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SYSTEM_PROMPT, processLocalVoiceQuery } from '@/lib/llm';
-import { TOOL_DEFINITIONS, get_order_details, cancel_order, check_return_eligibility } from '@/lib/tools';
+import {
+  TOOL_DEFINITIONS,
+  get_order_details,
+  cancel_order,
+  check_return_eligibility,
+  add_to_cart_tool,
+  reorder_item_tool,
+} from '@/lib/tools';
 
 export async function POST(req: NextRequest) {
   try {
@@ -65,6 +72,10 @@ export async function POST(req: NextRequest) {
               toolResult = cancel_order(args.order_id);
             } else if (fnName === 'check_return_eligibility') {
               toolResult = check_return_eligibility(args.order_id, args.is_opened, args.is_damaged);
+            } else if (fnName === 'add_to_cart') {
+              toolResult = add_to_cart_tool(args.product_name || userText);
+            } else if (fnName === 'reorder_item') {
+              toolResult = reorder_item_tool(args.product_name || userText);
             }
 
             // Make second call with tool response so LLM can synthesize natural response

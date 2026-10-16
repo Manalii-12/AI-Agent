@@ -52,11 +52,79 @@ export async function handleVoiceChat(req: Request, res: Response) {
       });
     }
 
+    // 2. Voice Cart Management & Re-ordering
+    if (query.includes('reorder') || query.includes('re-order') || query.includes('phir se order') || query.includes('dobara order')) {
+      let prodName = 'Hydrating Sunscreen SPF 50 PA++++';
+      let prodPrice = 499;
+      if (query.includes('serum') || query.includes('vitamin c')) {
+        prodName = 'Vitamin C Brightening Serum';
+        prodPrice = 699;
+      }
+      return res.json({
+        response: isHinglish
+          ? `Bilkul! Maine ${prodName} aapke cart mein re-order ke liye add kar diya hai. Kya aap Cash on Delivery se place karna chahenge?`
+          : `Certainly! I have added ${prodName} (₹${prodPrice}) to your bag for re-ordering. Would you like me to place it with Cash on Delivery?`,
+        toolCalled: { name: 'reorder_item', args: { query }, result: { success: true, data: { product: { name: prodName, price: prodPrice } } } },
+      });
+    }
+
+    if (
+      (query.includes('add') && (query.includes('cart') || query.includes('bag') || query.includes('basket'))) ||
+      query.includes('cart mein add') ||
+      query.includes('bag mein add') ||
+      query.includes('add to cart') ||
+      query.startsWith('add ')
+    ) {
+      let prodName = 'Hydrating Sunscreen SPF 50 PA++++';
+      let prodPrice = 499;
+      if (query.includes('serum') || query.includes('vitamin c')) {
+        prodName = 'Vitamin C Brightening Serum';
+        prodPrice = 699;
+      } else if (query.includes('face wash') || query.includes('green tea')) {
+        prodName = 'Green Tea Clarifying Face Wash + Toner';
+        prodPrice = 850;
+      } else if (query.includes('night cream') || query.includes('kumkumadi')) {
+        prodName = 'Kumkumadi Radiance Night Cream';
+        prodPrice = 1199;
+      } else if (query.includes('rose') || query.includes('mist')) {
+        prodName = 'Pure Kannauj Rose Water Mist';
+        prodPrice = 399;
+      }
+      return res.json({
+        response: isHinglish
+          ? `Haanji! Maine ${prodName} (₹${prodPrice}) aapke cart mein add kar diya hai.`
+          : `I've added the ${prodName} (₹${prodPrice}) to your cart!`,
+        toolCalled: { name: 'add_to_cart', args: { query }, result: { success: true, data: { product: { name: prodName, price: prodPrice } } } },
+      });
+    }
+
+    if (
+      (query.includes('what') && (query.includes('bag') || query.includes('cart'))) ||
+      query.includes('in my bag') ||
+      query.includes('in my cart')
+    ) {
+      return res.json({
+        response: isHinglish
+          ? "Aapke shopping bag mein items ready hain. Aap upar bag icon par click karke review aur checkout kar sakte hain!"
+          : "You can view and manage all items in your bag anytime by clicking the shopping bag icon in the top navigation bar!",
+      });
+    }
+
     // 3. Extract Order ID
+    let cleanedText = userText.toLowerCase()
+      .replace(/\bone zero one\b/g, '101')
+      .replace(/\bone not one\b/g, '101')
+      .replace(/\bone zero two\b/g, '102')
+      .replace(/\bone zero three\b/g, '103')
+      .replace(/\bnine nine nine\b/g, '999');
+
     let orderId: string | null = null;
-    const match = userText.match(/ORD[- ]?(\d+)/i) || userText.match(/\b(10[1-9]|999)\b/);
-    if (match) {
-      orderId = `ORD-${match[1]}`;
+    const matchExplicit = cleanedText.match(/(?:ord|order|o\s*r\s*d|od|ward|audi)[-\s#:]*([0-9]{3})/i);
+    const matchNum = cleanedText.match(/\b([0-9]{3})\b/);
+    if (matchExplicit) {
+      orderId = `ORD-${matchExplicit[1]}`;
+    } else if (matchNum) {
+      orderId = `ORD-${matchNum[1]}`;
     }
 
     // A. Cancellation Policy Enforcement

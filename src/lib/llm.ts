@@ -115,29 +115,11 @@ export function cleanTextForSpeech(text: string): string {
 export function processLocalVoiceQuery(userText: string, history: TranscriptMessage[] = []): { responseText: string; toolCalled?: { name: string; args: any; result: any } } {
   const query = userText.toLowerCase().trim();
 
-  // 0. Detect Hinglish / Hindi Code-Switching
+  // 0. Detect Hinglish / Hindi Code-Switching with exact word boundaries
   const isHinglish =
-    query.includes('mera') ||
-    query.includes('meri') ||
-    query.includes('aaya') ||
-    query.includes('aayega') ||
-    query.includes('aayi') ||
-    query.includes('nahi') ||
-    query.includes('kab') ||
-    query.includes('kya') ||
-    query.includes('kar do') ||
-    query.includes('karo') ||
-    query.includes('karna') ||
-    query.includes('hoga') ||
-    query.includes('hai') ||
-    query.includes('chahiye') ||
-    query.includes('batao') ||
-    query.includes('kaise') ||
-    query.includes('namaste') ||
-    query.includes('shukriya') ||
-    query.includes('dhanyawad') ||
-    query.includes('kripya') ||
-    query.includes('sakte');
+    /\b(mera|meri|mere|aaya|aayega|aayi|nahi|nahin|kab|kya|kar do|karo|karna|hoga|hogi|hai|hain|chahiye|batao|batayein|kaise|namaste|shukriya|dhanyawad|kripya|sakte|aapka|aapki|humari|kahan)\b/i.test(
+      query
+    );
 
   // 1. Detect Out of Scope (e.g. flight to Goa, weather, food, math)
   if (

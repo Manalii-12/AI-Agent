@@ -285,6 +285,27 @@ export const TestOrdersPanel: React.FC<TestOrdersPanelProps> = ({ onSelectPrompt
           >
             ☀️ &quot;What do you recommend for summer?&quot;
           </button>
+          <button
+            onClick={() => handleChipClick("Add the SPF 50 Sunscreen to my cart")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 transition cursor-pointer font-medium"
+            title="Tests Voice Cart: Adds SPF 50 Sunscreen directly into bag"
+          >
+            🛒 &quot;Add SPF 50 Sunscreen to cart&quot;
+          </button>
+          <button
+            onClick={() => handleChipClick("Reorder my sunscreen")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 transition cursor-pointer font-medium"
+            title="Tests Voice Cart: 1-Click Voice Reorder"
+          >
+            🔄 &quot;Reorder my sunscreen&quot;
+          </button>
+          <button
+            onClick={() => handleChipClick("What is in my bag?")}
+            className="text-[10px] px-2.5 py-1 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer font-medium"
+            title="Tests Voice Cart: Inspect shopping cart"
+          >
+            🛍️ &quot;What is in my bag?&quot;
+          </button>
         </div>
       </div>
     </div>

@@ -8,31 +8,52 @@ export interface ToolResult {
 }
 
 /**
- * Standardize order ID extraction from voice input (handles "ord 101", "order 101", "102", "o r d 102", "ORD-102", etc.)
+ * Standardize order ID extraction from voice input (handles "ord 101", "order 101", "101", "one zero one", "o r d 102", "ORD-102", "1 0 1", etc.)
  */
 export function normalizeOrderId(rawInput: string): string {
   if (!rawInput) return '';
-  const cleaned = rawInput.toLowerCase().trim();
+  let cleaned = rawInput.toLowerCase().trim();
+
+  // Handle words to numbers common in speech recognition
+  cleaned = cleaned
+    .replace(/\bone zero one\b/g, '101')
+    .replace(/\bone not one\b/g, '101')
+    .replace(/\bone hundred (and )?one\b/g, '101')
+    .replace(/\bone zero two\b/g, '102')
+    .replace(/\bone hundred (and )?two\b/g, '102')
+    .replace(/\bone zero three\b/g, '103')
+    .replace(/\bone hundred (and )?three\b/g, '103')
+    .replace(/\bnine nine nine\b/g, '999')
+    .replace(/\bnine hundred (and )?ninety nine\b/g, '999')
+    .replace(/\b1\s+0\s+1\b/g, '101')
+    .replace(/\b1\s+0\s+2\b/g, '102')
+    .replace(/\b1\s+0\s+3\b/g, '103')
+    .replace(/\b9\s+9\s+9\b/g, '999');
 
   // Pattern 1: Explicit ORD-101, ord 102, ord103, order 101, o r d 102, od 102, etc.
-  const matchExplicit = cleaned.match(/(?:ord|order|o\s*r\s*d|od|ward|audi|audit)[-\s]*([0-9]{3})/i);
+  const matchExplicit = cleaned.match(/(?:ord|order|o\s*r\s*d|od|ward|audi|audit)[-\s#:]*([0-9]{3})/i);
   if (matchExplicit) {
     return `ORD-${matchExplicit[1]}`;
   }
 
-  // Pattern 2: Standalone sample number like 101, 102, 103, 999
-  const matchNum = cleaned.match(/\b(10[1-9]|999)\b/);
+  // Pattern 2: Standalone 3-digit order number like 101, 102, 103, 999
+  const matchNum = cleaned.match(/\b([0-9]{3})\b/);
   if (matchNum) {
     return `ORD-${matchNum[1]}`;
   }
 
-  // Pattern 3: Generic ORD-XXX
-  const genericMatch = cleaned.match(/ord[-\s]?([0-9]+)/i);
+  // Pattern 3: Generic ORD-XXX (variable length digits)
+  const genericMatch = cleaned.match(/ord[-\s#:]*([0-9]+)/i);
   if (genericMatch) {
     return `ORD-${genericMatch[1]}`;
   }
 
-  return rawInput.trim().toUpperCase();
+  // Pattern 4: If input was already something like "ORD-101"
+  if (/^ORD-\d+$/i.test(cleaned)) {
+    return cleaned.toUpperCase();
+  }
+
+  return '';
 }
 
 /**
@@ -44,7 +65,7 @@ export function get_order_details(order_id: string): ToolResult {
   if (!normalizedId) {
     return {
       success: false,
-      message: "I didn't catch the order number. Could you please provide your Order ID (like ORD-101)?",
+      message: "I would be happy to track your order. Could you please provide your Order ID, for example ORD-101?",
     };
   }
 
