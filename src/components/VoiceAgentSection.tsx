@@ -160,8 +160,8 @@ export const VoiceAgentSection: React.FC<VoiceAgentSectionProps> = ({
           />
         </div>
 
-        {/* Right Column: Live Conversation Transcript (5 cols, Sticky Pinned on Desktop) */}
-        <div className="lg:col-span-5 flex flex-col h-[650px] lg:h-[760px] lg:sticky lg:top-24">
+        {/* Right Column: Live Conversation Transcript (5 cols, Fully Contained & Responsive) */}
+        <div className="lg:col-span-5 flex flex-col h-[540px] sm:h-[580px] lg:h-[620px]">
           <TranscriptFeed
             transcript={transcript}
             interimText={interimText}

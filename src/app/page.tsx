@@ -13,7 +13,7 @@ import { CartDrawer } from '@/components/CartDrawer';
 import { CheckoutModal } from '@/components/CheckoutModal';
 import { SettingsModal } from '@/components/SettingsModal';
 import { Order } from '@/types';
-import { Settings } from 'lucide-react';
+import { Mic, Sparkles, Settings } from 'lucide-react';
 
 function StorefrontContent() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -36,6 +36,7 @@ function StorefrontContent() {
       <Navbar
         onOpenAuth={() => setIsAuthOpen(true)}
         onOpenCart={() => setIsCartOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       {/* Main Container */}
@@ -59,15 +60,21 @@ function StorefrontContent() {
         />
       </main>
 
-      {/* Floating Settings Button for Evaluator LLM API Key config */}
-      <div className="fixed bottom-4 right-4 z-30">
+      {/* Floating Voice Assistant Button (Redirects to Voice Assistant Section) */}
+      <div className="fixed bottom-5 right-5 z-30">
         <button
-          onClick={() => setIsSettingsOpen(true)}
-          className="flex items-center gap-2 p-3 rounded-2xl bg-white/90 hover:bg-white text-stone-700 border border-stone-200 shadow-lg text-xs font-semibold backdrop-blur-md transition hover:scale-105"
-          title="Configure Cloud LLM or Speech Synthesis"
+          onClick={() => {
+            const el = document.getElementById('voice-agent-section');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-stone-900 hover:bg-black text-white shadow-2xl shadow-stone-900/30 border border-stone-700/80 text-xs font-semibold backdrop-blur-md transition-all transform hover:scale-105 active:scale-95 cursor-pointer group"
+          title="Talk to Aria — AI Voice Assistant"
         >
-          <Settings className="w-4 h-4 text-aura-800" />
-          <span className="hidden sm:inline">Settings</span>
+          <div className="relative flex items-center justify-center w-7 h-7 rounded-xl bg-gradient-to-tr from-aura-700 to-aura-500 text-white shadow-xs">
+            <Mic className="w-4 h-4 text-aura-100 group-hover:scale-110 transition-transform" />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          </div>
+          <span className="tracking-wide">Voice Assistant</span>
         </button>
       </div>
 

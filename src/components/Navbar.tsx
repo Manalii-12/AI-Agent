@@ -1,16 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Sparkles, ShoppingBag, User, LogIn, LogOut, ShieldCheck, ChevronDown, Check } from 'lucide-react';
+import { Sparkles, ShoppingBag, User, LogIn, LogOut, ShieldCheck, ChevronDown, Check, Settings } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 
 interface NavbarProps {
   onOpenAuth: () => void;
   onOpenCart: () => void;
+  onOpenSettings?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth, onOpenCart }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth, onOpenCart, onOpenSettings }) => {
   const { user, isAuthenticated, logout } = useAuth();
   const { items } = useCart();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -100,6 +101,17 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth, onOpenCart }) => {
                 </span>
               )}
             </button>
+
+            {/* Settings Button */}
+            {onOpenSettings && (
+              <button
+                onClick={onOpenSettings}
+                className="p-2.5 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 transition"
+                title="Settings (Cloud LLM / Voice Synthesis)"
+              >
+                <Settings className="w-4 h-4 text-stone-600" />
+              </button>
+            )}
 
             {/* Auth Button / Profile Menu */}
             {isAuthenticated && user ? (

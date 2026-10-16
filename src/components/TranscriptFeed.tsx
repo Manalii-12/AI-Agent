@@ -20,15 +20,12 @@ export const TranscriptFeed: React.FC<TranscriptFeedProps> = ({
   const [inputText, setInputText] = useState('');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll ONLY the inner chat messages container on new messages — NEVER scroll the outer window!
+  // Auto-scroll ONLY the inner chat messages container — NEVER scrolls the outer window!
   useEffect(() => {
     if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo({
-        top: scrollContainerRef.current.scrollHeight,
-        behavior: 'smooth',
-      });
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
-  }, [transcript]);
+  }, [transcript, interimText]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,9 +36,9 @@ export const TranscriptFeed: React.FC<TranscriptFeedProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-white/95 border border-stone-200/90 rounded-3xl p-5 sm:p-6 shadow-[0_10px_35px_rgba(0,0,0,0.04)] backdrop-blur-xl transition-all">
+    <div className="flex flex-col h-full bg-white/95 border border-stone-200/90 rounded-3xl p-5 sm:p-6 shadow-[0_10px_35px_rgba(0,0,0,0.04)] backdrop-blur-xl transition-all overflow-hidden">
       {/* Feed Header */}
-      <div className="flex items-center justify-between pb-4 mb-4 border-b border-stone-100">
+      <div className="flex items-center justify-between pb-3 mb-3 border-b border-stone-100 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-aura-800 to-aura-600 text-white flex items-center justify-center shadow-xs">
             <Sparkles className="w-4 h-4 text-aura-100" />
@@ -65,11 +62,10 @@ export const TranscriptFeed: React.FC<TranscriptFeedProps> = ({
         </span>
       </div>
 
-      {/* Messages Scroll Area - FIXED HEIGHT, Internal Scroll Only (Never scrolls window) */}
+      {/* Messages Scroll Area - Responsive, Internal Scroll Only */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto space-y-4 pr-1.5 scroll-smooth overscroll-contain"
-        style={{ scrollBehavior: 'smooth' }}
+        className="flex-1 overflow-y-auto space-y-3.5 pr-2 min-h-0"
       >
         {transcript.length === 0 && !interimText && (
           <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center p-8 text-stone-400">
@@ -169,7 +165,7 @@ export const TranscriptFeed: React.FC<TranscriptFeedProps> = ({
       </div>
 
       {/* Manual Prompt Input for rapid test verification */}
-      <form onSubmit={handleSubmit} className="mt-4 pt-3 border-t border-stone-100 flex items-center gap-2">
+      <form onSubmit={handleSubmit} className="mt-3 pt-3 border-t border-stone-100 flex items-center gap-2 shrink-0">
         <input
           type="text"
           value={inputText}

@@ -21,18 +21,19 @@ body {
 
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.03);
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(161, 130, 118, 0.3);
+  background: rgba(161, 130, 118, 0.45);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(161, 130, 118, 0.6);
+  background: rgba(161, 130, 118, 0.8);
 }
 
 @keyframes pulse-ring {
