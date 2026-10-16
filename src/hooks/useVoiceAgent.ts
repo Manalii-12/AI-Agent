@@ -81,45 +81,65 @@ export function useVoiceAgent({
         // Filter strictly English-capable voices so words like "thirty ml" and prices are pronounced with proper English diction
         const englishVoices = validVoices.filter((v) => {
           const l = (v.lang || '').toLowerCase();
-          // Exclude raw Hindi, Bengali, Marathi, etc. which corrupt English phonetics
           if (l.startsWith('hi') || l.startsWith('bn') || l.startsWith('mr') || l.startsWith('ta')) {
             return false;
           }
           return l.startsWith('en') || l === '';
         });
 
-        // Helper to identify Indian English voices (as required by DataStraw PDF: "preferably in an Indian voice")
-        const isIndianVoice = (v: SpeechSynthesisVoice) => {
-          const l = (v.lang || '').toLowerCase();
+        const isMaleVoice = (v: SpeechSynthesisVoice) => {
           const n = (v.name || '').toLowerCase();
-          if (l.startsWith('hi') || l.startsWith('mr') || l.startsWith('bn') || l.startsWith('ta')) {
-            return false;
-          }
           return (
-            l.includes('en-in') ||
-            n.includes('india') ||
-            n.includes('neerja') ||
             n.includes('prabhat') ||
-            n.includes('heera') ||
             n.includes('ravi') ||
-            n.includes('veena') ||
-            n.includes('priya') ||
-            n.includes('ananya') ||
             n.includes('aarav') ||
-            n.includes('kalpana') ||
-            n.includes('geeta')
+            n.includes('rishi') ||
+            n.includes('david') ||
+            n.includes('mark') ||
+            n.includes('guy') ||
+            n.includes('male') ||
+            n.includes('george') ||
+            n.includes('daniel') ||
+            n.includes('alex') ||
+            n.includes('fred') ||
+            n.includes('oliver')
           );
         };
 
-        const indianVoices = englishVoices.filter(isIndianVoice);
+        // Helper to identify Indian English female voices ("Aria - that girl voice")
+        const isFemaleIndianEnglishVoice = (v: SpeechSynthesisVoice) => {
+          const l = (v.lang || '').toLowerCase();
+          const n = (v.name || '').toLowerCase();
+          if (isMaleVoice(v)) return false;
+          if (l.startsWith('hi') || l.startsWith('mr') || l.startsWith('bn')) return false;
+
+          return (
+            n.includes('neerja') ||
+            n.includes('heera') ||
+            n.includes('priya') ||
+            n.includes('veena') ||
+            n.includes('kalpana') ||
+            n.includes('geeta') ||
+            n.includes('ananya') ||
+            (l.includes('en-in') && !isMaleVoice(v)) ||
+            (n.includes('india') && !isMaleVoice(v))
+          );
+        };
+
+        const femaleIndianVoices = englishVoices.filter(isFemaleIndianEnglishVoice);
         const candidateVoices = englishVoices.length > 0 ? englishVoices : validVoices;
 
-        // Sort voices safely: Indian English first (as required by PDF), then Natural English, then others
+        // Sort voices: Female Indian English first, then other Indian English, then Natural Female English
         const sortedVoices = [...candidateVoices].sort((a, b) => {
-          const aIsInd = isIndianVoice(a);
-          const bIsInd = isIndianVoice(b);
-          if (aIsInd && !bIsInd) return -1;
-          if (!aIsInd && bIsInd) return 1;
+          const aIsFemInd = isFemaleIndianEnglishVoice(a);
+          const bIsFemInd = isFemaleIndianEnglishVoice(b);
+          if (aIsFemInd && !bIsFemInd) return -1;
+          if (!aIsFemInd && bIsFemInd) return 1;
+
+          const aIsMale = isMaleVoice(a);
+          const bIsMale = isMaleVoice(b);
+          if (!aIsMale && bIsMale) return -1;
+          if (aIsMale && !bIsMale) return 1;
 
           const aName = (a.name || '').toLowerCase();
           const bName = (b.name || '').toLowerCase();
@@ -133,33 +153,24 @@ export function useVoiceAgent({
 
         setAvailableVoices(sortedVoices);
 
-        // 1. Natural / Online Indian English Voice (e.g. Microsoft Neerja Online (Natural) - English (India))
-        const indianNaturalVoice = indianVoices.find((v) => {
+        // 1. Target "that girl voice" - Indian English female voice (Neerja, Heera, Priya, Veena)
+        const bestFemaleIndianVoice =
+          femaleIndianVoices.find((v) => (v.name || '').toLowerCase().includes('neerja')) ||
+          femaleIndianVoices.find((v) => (v.name || '').toLowerCase().includes('heera')) ||
+          femaleIndianVoices.find((v) => (v.name || '').toLowerCase().includes('priya')) ||
+          femaleIndianVoices.find((v) => (v.name || '').toLowerCase().includes('veena')) ||
+          femaleIndianVoices[0];
+
+        // 2. High quality natural female English fallback (e.g. Jenny, Ava, Samantha, Zira)
+        const naturalFemaleEnglishVoice = englishVoices.find((v) => {
           const n = (v.name || '').toLowerCase();
-          return n.includes('natural') || n.includes('online') || n.includes('neural') || n.includes('neerja');
+          return !isMaleVoice(v) && (n.includes('natural') || n.includes('online') || n.includes('neural') || n.includes('zira') || n.includes('samantha') || n.includes('jenny'));
         });
-
-        // 2. High clarity Indian voice (e.g. Microsoft Heera, Google English India, en-IN)
-        const anyIndianVoice =
-          indianVoices.find((v) => {
-            const l = (v.lang || '').toLowerCase();
-            return l.includes('en-in');
-          }) || indianVoices[0];
-
-        // 3. High quality natural English voices (fallback if device has no Indian voice)
-        const naturalEnglishVoice = englishVoices.find((v) => {
-          const n = (v.name || '').toLowerCase();
-          return n.includes('natural') || n.includes('online') || n.includes('neural');
-        });
-
-        // 4. Standard English voice fallback
-        const standardEnglishVoice = englishVoices[0];
 
         const defaultVoice =
-          indianNaturalVoice ||
-          anyIndianVoice ||
-          naturalEnglishVoice ||
-          standardEnglishVoice ||
+          bestFemaleIndianVoice ||
+          naturalFemaleEnglishVoice ||
+          sortedVoices.find((v) => !isMaleVoice(v)) ||
           sortedVoices[0] ||
           null;
 

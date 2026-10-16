@@ -37,18 +37,16 @@ export async function handleVoiceChat(req: Request, res: Response) {
       query.includes('recipe')
     ) {
       return res.json({
-        response: isHinglish
-          ? 'Maaf kijiye, main sirf Aura Skincare se judi queries jaise orders, shipping aur skincare products mein hi madad kar sakti hoon. Kya main Aura Skincare ke kisi product ya order mein aapki sahayata karoon?'
-          : 'I can only help with Aura Skincare-related queries, such as our products, orders, shipping, and returns. Is there anything about Aura Skincare I can assist you with?',
+        response:
+          'I can only help with Aura Skincare-related queries, such as our products, orders, shipping, and returns. Is there anything about Aura Skincare I can assist you with?',
       });
     }
 
     // 2. Summer & Sunscreen Recommendations
     if (query.includes('summer') || query.includes('garmi') || query.includes('dhoop') || query.includes('sun protection')) {
       return res.json({
-        response: isHinglish
-          ? 'Garmiyon ke liye humara Hydrating Sunscreen SPF 50 aur Pure Kannauj Rose Water Mist sabse best hain. Yeh dhoop se bachate hain aur skin ko hydrate rakhte hain. Kya main sunscreen cart mein add karoon?'
-          : 'For summer, we highly recommend our Hydrating Sunscreen SPF 50 and Pure Kannauj Rose Water Mist. They protect against UV damage and keep your skin fresh and hydrated. Would you like me to add the sunscreen to your bag?',
+        response:
+          'For summer, we highly recommend our Hydrating Sunscreen SPF 50 and Pure Kannauj Rose Water Mist. They protect against UV damage and keep your skin fresh and hydrated. Would you like me to add the sunscreen to your bag?',
       });
     }
 
@@ -61,9 +59,7 @@ export async function handleVoiceChat(req: Request, res: Response) {
         prodPrice = 699;
       }
       return res.json({
-        response: isHinglish
-          ? `Bilkul! Maine ${prodName} aapke cart mein re-order ke liye add kar diya hai. Kya aap Cash on Delivery se place karna chahenge?`
-          : `Certainly! I have added ${prodName} (₹${prodPrice}) to your bag for re-ordering. Would you like me to place it with Cash on Delivery?`,
+        response: `Certainly! I have added ${prodName} (₹${prodPrice}) to your bag for re-ordering. Would you like me to place it with Cash on Delivery?`,
         toolCalled: { name: 'reorder_item', args: { query }, result: { success: true, data: { product: { name: prodName, price: prodPrice } } } },
       });
     }
@@ -91,9 +87,7 @@ export async function handleVoiceChat(req: Request, res: Response) {
         prodPrice = 399;
       }
       return res.json({
-        response: isHinglish
-          ? `Haanji! Maine ${prodName} (₹${prodPrice}) aapke cart mein add kar diya hai.`
-          : `I've added the ${prodName} (₹${prodPrice}) to your cart!`,
+        response: `I have added the ${prodName} (₹${prodPrice}) to your cart!`,
         toolCalled: { name: 'add_to_cart', args: { query }, result: { success: true, data: { product: { name: prodName, price: prodPrice } } } },
       });
     }
@@ -104,9 +98,8 @@ export async function handleVoiceChat(req: Request, res: Response) {
       query.includes('in my cart')
     ) {
       return res.json({
-        response: isHinglish
-          ? "Aapke shopping bag mein items ready hain. Aap upar bag icon par click karke review aur checkout kar sakte hain!"
-          : "You can view and manage all items in your bag anytime by clicking the shopping bag icon in the top navigation bar!",
+        response:
+          'You can view and manage all items in your bag anytime by clicking the shopping bag icon in the top navigation bar!',
       });
     }
 

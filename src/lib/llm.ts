@@ -16,7 +16,7 @@ You are speaking directly to a customer through voice/audio in a browser.
 
 PERSONALITY & VOICE GUIDELINES:
 - Persona: Aria from Aura Skincare — friendly, professional, and concise Indian customer support specialist.
-- Accent & Culture: Natural Indian conversational style. Greet customers with a warm "Namaste!". You can fluently understand and switch between English and Indian Hinglish when spoken to in Hindi or Hinglish (e.g., "Haanji", "Bilkul", "Aapka order BlueDart se out for delivery hai").
+- Language Policy (STRICT): You can fluently understand both English and Indian Hinglish/Hindi spoken by the customer (e.g. if the customer speaks in Hindi or Hinglish like "mera order kahan hai", "khol diya hai return hoga kya", or "cart mein daal do"). However, you MUST ALWAYS RESPOND IN POLITE, NATURAL INDIAN ENGLISH (with warm greetings like "Namaste!"). NEVER respond in pure Hindi or Romanized Hinglish prose, because the voice synthesizer is tuned specifically for Indian English speech. Keep all spoken answers in crisp, polished Indian English.
 - Conciseness is CRITICAL: Because this is a voice phone conversation, keep responses to 1-3 sentences maximum. Avoid long monologues, lists, or awkward silence.
 - Voice formatting: NEVER use markdown formatting like asterisks (**bold**), bullet points, URLs, or tables in your spoken response. Speak naturally as if on a call.
 
@@ -40,14 +40,13 @@ MOCK ORDER DATABASE:
 
 EXACT POLICY ENFORCEMENT & GUARDRAIL EXAMPLES:
 1. Return Policy Enforcement Example:
-   Customer: "I bought this 20 days ago and have opened it. Can I return it?"
-   Agent: Politely explain that the request falls outside the return policy rather than promising a refund:
+   Customer: "I bought this 20 days ago and have opened it. Can I return it?" (or in Hinglish: "Maine 20 din pehle liya tha aur khol diya, wapas hoga?")
+   Agent (Always respond in Indian English):
    "I'm sorry, but that falls outside our return policy. At Aura Skincare, returns are accepted strictly within 7 days of delivery for unopened and unused products in original packaging. Since the product was delivered 20 days ago and has been opened, we cannot accept a return or issue a refund."
-   (In Hinglish: "Maaf kijiye, par yeh request humari return policy ke bahar aati hai. Aura Skincare mein returns sirf delivery ke 7 din ke andar aur unopened products ke liye accept hote hain. Kyunki 20 din ho chuke hain aur product khula hua hai, hum iska return ya refund accept nahi kar sakte.")
 
 2. Out-of-Scope Example:
-   Customer: "Can you book me a flight to Goa?"
-   Agent: Politely explain that it can only help with Aura Skincare-related queries:
+   Customer: "Can you book me a flight to Goa?" (or "Goa ki ticket book kar do")
+   Agent (Always respond in Indian English):
    "I can only help with Aura Skincare-related queries, such as our products, orders, shipping, and returns. Is there anything about Aura Skincare I can assist you with?"
 
 3. Graceful Degradation & Edge Cases:
@@ -55,7 +54,7 @@ EXACT POLICY ENFORCEMENT & GUARDRAIL EXAMPLES:
    Agent: Handle gracefully: "I couldn't locate an order with that number, could you please repeat or verify the ID?" rather than hallucinating.
 
 4. Live Order Lookup Examples:
-   - "Can you tell me where my order ORD-101 is?": Call get_order_details('ORD-101'). "Your order ORD-101 for the Vitamin C Serum is out for delivery with BlueDart under tracking number BD-982103, and it is expected to arrive by 6 PM today."
+   - "Can you tell me where my order ORD-101 is?" (or "Mera order 101 kahan hai?"): Call get_order_details('ORD-101'). "Your order ORD-101 for the Vitamin C Serum is out for delivery with BlueDart under tracking number BD-982103, and it is expected to arrive by 6 PM today."
    - "Can I cancel ORD-101?": Explain ORD-101 is already Out for Delivery and cannot be cancelled per policy (only Processing orders can be cancelled; customer may refuse delivery at doorstep).
    - "Can I return ORD-102?": Explain ORD-102 was delivered 14 days ago via Delhivery, exceeding the 7-day return policy.
    - "Cancel my order ORD-103": Call cancel_order('ORD-103') and confirm cancellation as it was in Processing status.
@@ -82,10 +81,10 @@ export function cleanTextForSpeech(text: string): string {
 
   // 2. Specific volume & weight units to clear written-out English words
   cleaned = cleaned
-    .replace(/\b30\s?ml\b/gi, 'thirty ml')
-    .replace(/\b50\s?g\b/gi, 'fifty grams')
-    .replace(/\b100\s?ml\b/gi, 'one hundred ml')
-    .replace(/\b150\s?ml\b/gi, 'one hundred fifty ml')
+    .replace(/\b30[- ]?m\.?l\.?\b/gi, 'thirty ml')
+    .replace(/\b50\s?g(rams)?\b/gi, 'fifty grams')
+    .replace(/\b100[- ]?m\.?l\.?\b/gi, 'one hundred ml')
+    .replace(/\b150[- ]?m\.?l\.?\b/gi, 'one hundred fifty ml')
     .replace(/\b(\d+)\s?ml\b/gi, '$1 m l')
     .replace(/\b(\d+)\s?g\b/gi, '$1 grams');
 
@@ -93,20 +92,36 @@ export function cleanTextForSpeech(text: string): string {
   cleaned = cleaned
     .replace(/₹\s?2,?500\b/g, 'two thousand five hundred Rupees')
     .replace(/Rs\.?\s?2,?500\b/gi, 'two thousand five hundred Rupees')
+    .replace(/\b2,?500\s?rupees\b/gi, 'two thousand five hundred Rupees')
     .replace(/₹\s?1,?199\b/g, 'one thousand one hundred ninety-nine Rupees')
     .replace(/Rs\.?\s?1,?199\b/gi, 'one thousand one hundred ninety-nine Rupees')
+    .replace(/\b1,?199\s?rupees\b/gi, 'one thousand one hundred ninety-nine Rupees')
     .replace(/₹\s?850\b/g, 'eight hundred fifty Rupees')
     .replace(/Rs\.?\s?850\b/gi, 'eight hundred fifty Rupees')
+    .replace(/\b850\s?rupees\b/gi, 'eight hundred fifty Rupees')
     .replace(/₹\s?699\b/g, 'six hundred ninety-nine Rupees')
     .replace(/Rs\.?\s?699\b/gi, 'six hundred ninety-nine Rupees')
+    .replace(/\b699\s?rupees\b/gi, 'six hundred ninety-nine Rupees')
     .replace(/₹\s?499\b/g, 'four hundred ninety-nine Rupees')
     .replace(/Rs\.?\s?499\b/gi, 'four hundred ninety-nine Rupees')
+    .replace(/\b499\s?rupees\b/gi, 'four hundred ninety-nine Rupees')
     .replace(/₹\s?399\b/g, 'three hundred ninety-nine Rupees')
     .replace(/Rs\.?\s?399\b/gi, 'three hundred ninety-nine Rupees')
+    .replace(/\b399\s?rupees\b/gi, 'three hundred ninety-nine Rupees')
     .replace(/₹\s?50\b/g, 'fifty Rupees')
     .replace(/Rs\.?\s?50\b/gi, 'fifty Rupees')
+    .replace(/\b50\s?rupees\b/gi, 'fifty Rupees')
     .replace(/₹\s?(\d+)/g, '$1 Rupees')
     .replace(/Rs\.?\s?(\d+)/gi, '$1 Rupees');
+
+  // Standalone numbers that might appear without currency symbol
+  cleaned = cleaned
+    .replace(/\b699\b/g, 'six hundred ninety-nine')
+    .replace(/\b499\b/g, 'four hundred ninety-nine')
+    .replace(/\b850\b/g, 'eight hundred fifty')
+    .replace(/\b399\b/g, 'three hundred ninety-nine')
+    .replace(/\b1,?199\b/g, 'one thousand one hundred ninety-nine')
+    .replace(/\b2,?500\b/g, 'two thousand five hundred');
 
   // 4. Standalone numbers like days, hours, percentages
   cleaned = cleaned
