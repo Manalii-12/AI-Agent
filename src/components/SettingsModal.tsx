@@ -44,25 +44,51 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             lang: v.lang || '',
           }));
 
+        const isMaleVoice = (name: string) => {
+          const n = name.toLowerCase();
+          return (
+            n.includes('prabhat') ||
+            n.includes('ravi') ||
+            n.includes('aarav') ||
+            n.includes('rishi') ||
+            n.includes('david') ||
+            n.includes('mark') ||
+            n.includes('guy') ||
+            n.includes('male') ||
+            n.includes('george') ||
+            n.includes('daniel') ||
+            n.includes('alex') ||
+            n.includes('fred') ||
+            n.includes('oliver')
+          );
+        };
+
+        const femaleEnglish = valid.filter((v) => {
+          const l = (v.lang || '').toLowerCase();
+          const n = (v.name || '').toLowerCase();
+          if (isMaleVoice(n)) return false;
+          if (l.startsWith('hi') || l.startsWith('bn') || l.startsWith('mr') || n.includes('swara') || n.includes('hindi')) {
+            return false;
+          }
+          return l.startsWith('en') || l === '';
+        });
+
         const isIndianVoice = (v: { name: string; lang: string }) => {
           const l = (v.lang || '').toLowerCase();
           const n = (v.name || '').toLowerCase();
           return (
             l.includes('en-in') ||
-            l.includes('hi-in') ||
-            l === 'hi' ||
-            n.includes('india') ||
             n.includes('neerja') ||
-            n.includes('prabhat') ||
             n.includes('heera') ||
-            n.includes('ravi') ||
             n.includes('veena') ||
             n.includes('priya') ||
-            n.includes('ananya')
+            (n.includes('india') && l.startsWith('en'))
           );
         };
 
-        valid.sort((a, b) => {
+        const candidateVoices = femaleEnglish.length > 0 ? femaleEnglish : valid.filter((v) => !isMaleVoice(v.name));
+
+        candidateVoices.sort((a, b) => {
           const aIsInd = isIndianVoice(a);
           const bIsInd = isIndianVoice(b);
           if (aIsInd && !bIsInd) return -1;
@@ -70,22 +96,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           const aName = (a.name || '').toLowerCase();
           const bName = (b.name || '').toLowerCase();
-          const aIsNatural = aName.includes('natural') || aName.includes('online') || aName.includes('neural');
-          const bIsNatural = bName.includes('natural') || bName.includes('online') || bName.includes('neural');
+          const aIsNatural = aName.includes('natural') || aName.includes('online') || aName.includes('neural') || aName.includes('zira');
+          const bIsNatural = bName.includes('natural') || bName.includes('online') || bName.includes('neural') || bName.includes('zira');
           if (aIsNatural && !bIsNatural) return -1;
           if (!aIsNatural && bIsNatural) return 1;
-
-          const aLang = (a.lang || '').toLowerCase();
-          const bLang = (b.lang || '').toLowerCase();
-          const aIsEn = aLang.startsWith('en');
-          const bIsEn = bLang.startsWith('en');
-          if (aIsEn && !bIsEn) return -1;
-          if (!aIsEn && bIsEn) return 1;
 
           return aName.localeCompare(bName);
         });
 
-        setVoices(valid);
+        setVoices(candidateVoices);
       } catch (e) {
         console.warn('Failed to load voices in SettingsModal:', e);
       }
@@ -240,14 +259,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     const n = name.toLowerCase();
                     const isIndian =
                       lang.includes('en-in') ||
-                      lang.includes('hi') ||
-                      n.includes('india') ||
                       n.includes('neerja') ||
-                      n.includes('prabhat') ||
                       n.includes('heera') ||
-                      n.includes('ravi') ||
                       n.includes('veena') ||
-                      n.includes('priya');
+                      n.includes('priya') ||
+                      (n.includes('india') && lang.startsWith('en'));
                     const isEn = lang.startsWith('en');
                     const isNatural = n.includes('natural') || n.includes('online') || n.includes('neural');
                     const prefix = isIndian

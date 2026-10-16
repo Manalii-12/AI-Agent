@@ -79,13 +79,26 @@ export function cleanTextForSpeech(text: string): string {
     .replace(/`([^`]+)`/g, '$1')
     .replace(/#{1,6}\s?/g, '');
 
-  // 2. Specific volume & weight units to clear written-out English words
+  // 2. Remove parenthesized (30ml) or (50g) in product names
   cleaned = cleaned
-    .replace(/\b30[- ]?m\.?l\.?\b/gi, 'thirty ml')
-    .replace(/\b50\s?g(rams)?\b/gi, 'fifty grams')
-    .replace(/\b100[- ]?m\.?l\.?\b/gi, 'one hundred ml')
-    .replace(/\b150[- ]?m\.?l\.?\b/gi, 'one hundred fifty ml')
-    .replace(/\b(\d+)\s?ml\b/gi, '$1 m l')
+    .replace(/\(\s*30\s?m\.?l\.?\s*\)/gi, '')
+    .replace(/\(\s*50\s?g\s*\)/gi, '')
+    .replace(/\(\s*100\s?m\.?l\.?\s*\)/gi, '')
+    .replace(/\(\s*150\s?m\.?l\.?\s*\)/gi, '')
+    .replace(/\(\s*\)/g, '')
+    .replace(/\(\s*,/g, '(')
+    .replace(/,\s*\)/g, ')')
+    .replace(/\s*,\s*,/g, ',');
+
+  // 3. Replace any standalone or unit milliliters so "ml" is NEVER read as "mal" or "tisi mal"
+  cleaned = cleaned
+    .replace(/\b30[- ]?m\.?l\.?\b/gi, 'thirty milliliters')
+    .replace(/\b50[- ]?g(rams)?\b/gi, 'fifty grams')
+    .replace(/\b100[- ]?m\.?l\.?\b/gi, 'one hundred milliliters')
+    .replace(/\b150[- ]?m\.?l\.?\b/gi, 'one hundred fifty milliliters')
+    .replace(/\b(\d+)[- ]?m\.?l\.?\b/gi, '$1 milliliters')
+    .replace(/\bml\b/gi, 'milliliters')
+    .replace(/\bm\.l\.\b/gi, 'milliliters')
     .replace(/\b(\d+)\s?g\b/gi, '$1 grams');
 
   // 3. Indian Rupee amounts into spoken English words

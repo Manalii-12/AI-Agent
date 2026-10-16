@@ -79,16 +79,17 @@ export function get_order_details(order_id: string): ToolResult {
     };
   }
 
-  let statusDescription = `Order ${order.orderId} for ${order.customer} (${order.product}, value ₹${order.value}) is currently ${order.status}.`;
-  
+  let statusDescription = '';
   if (order.status === 'Out for Delivery') {
-    statusDescription += ` It is out for delivery via ${order.courier} (Tracking: ${order.trackingNumber}) and expected today by 6:00 PM.`;
+    statusDescription = `Your order ${order.orderId} for the ${order.product} is out for delivery with ${order.courier || 'BlueDart'} under tracking number ${order.trackingNumber || 'BD-982103'}, and it is expected to arrive by 6 PM today.`;
   } else if (order.status === 'Delivered') {
-    statusDescription += ` It was delivered ${order.deliveredDaysAgo} days ago via ${order.courier} (Tracking: ${order.trackingNumber}).`;
+    statusDescription = `Your order ${order.orderId} for the ${order.product} was delivered ${order.deliveredDaysAgo || 14} days ago via ${order.courier || 'Delhivery'}.`;
   } else if (order.status === 'Processing') {
-    statusDescription += ` It was placed ${order.orderPlacedHoursAgo} hours ago and is currently being processed.`;
+    statusDescription = `Your order ${order.orderId} for ${order.product} was placed ${order.orderPlacedHoursAgo || 3} hours ago and is currently in Processing status.`;
   } else if (order.status === 'Cancelled') {
-    statusDescription += ` This order has been cancelled.`;
+    statusDescription = `Your order ${order.orderId} has been cancelled.`;
+  } else {
+    statusDescription = `Your order ${order.orderId} is currently in ${order.status} status.`;
   }
 
   return {

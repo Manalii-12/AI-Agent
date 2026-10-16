@@ -32,6 +32,7 @@ export function useVoiceAgent({
 
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
+  const selectedVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
 
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
@@ -75,19 +76,19 @@ export function useVoiceAgent({
         const allVoices = synth.getVoices() || [];
         if (!allVoices || allVoices.length === 0) return;
 
-        // Filter valid voices
         const validVoices = allVoices.filter((v) => v && typeof v.name === 'string');
 
-        // Filter strictly English-capable voices so words like "thirty ml" and prices are pronounced with proper English diction
+        // Exclude raw non-English (Hindi, Marathi, Bengali) and all male voices
         const englishVoices = validVoices.filter((v) => {
           const l = (v.lang || '').toLowerCase();
-          if (l.startsWith('hi') || l.startsWith('bn') || l.startsWith('mr') || l.startsWith('ta')) {
+          const n = (v.name || '').toLowerCase();
+          if (l.startsWith('hi') || l.startsWith('bn') || l.startsWith('mr') || l.startsWith('ta') || n.includes('swara') || n.includes('hindi')) {
             return false;
           }
           return l.startsWith('en') || l === '';
         });
 
-        const isMaleVoice = (v: SpeechSynthesisVoice) => {
+        const isMale = (v: SpeechSynthesisVoice) => {
           const n = (v.name || '').toLowerCase();
           return (
             n.includes('prabhat') ||
@@ -102,15 +103,25 @@ export function useVoiceAgent({
             n.includes('daniel') ||
             n.includes('alex') ||
             n.includes('fred') ||
-            n.includes('oliver')
+            n.includes('oliver') ||
+            n.includes('richard') ||
+            n.includes('james') ||
+            n.includes('thomas') ||
+            n.includes('william') ||
+            n.includes('michael') ||
+            n.includes('paul') ||
+            n.includes('brian') ||
+            n.includes('kevin') ||
+            n.includes('edward') ||
+            n.includes('peter') ||
+            n.includes('sean')
           );
         };
 
-        // Helper to identify Indian English female voices ("Aria - that girl voice")
         const isFemaleIndianEnglishVoice = (v: SpeechSynthesisVoice) => {
           const l = (v.lang || '').toLowerCase();
           const n = (v.name || '').toLowerCase();
-          if (isMaleVoice(v)) return false;
+          if (isMale(v)) return false;
           if (l.startsWith('hi') || l.startsWith('mr') || l.startsWith('bn')) return false;
 
           return (
@@ -118,33 +129,27 @@ export function useVoiceAgent({
             n.includes('heera') ||
             n.includes('priya') ||
             n.includes('veena') ||
-            n.includes('kalpana') ||
-            n.includes('geeta') ||
-            n.includes('ananya') ||
-            (l.includes('en-in') && !isMaleVoice(v)) ||
-            (n.includes('india') && !isMaleVoice(v))
+            (l.includes('en-in') && !isMale(v)) ||
+            (n.includes('india') && l.startsWith('en') && !isMale(v))
           );
         };
 
-        const femaleIndianVoices = englishVoices.filter(isFemaleIndianEnglishVoice);
-        const candidateVoices = englishVoices.length > 0 ? englishVoices : validVoices;
-
-        // Sort voices: Female Indian English first, then other Indian English, then Natural Female English
-        const sortedVoices = [...candidateVoices].sort((a, b) => {
+        const candidateVoices = englishVoices.filter((v) => !isMale(v));
+        const sortedVoices = [...(candidateVoices.length > 0 ? candidateVoices : validVoices)].sort((a, b) => {
           const aIsFemInd = isFemaleIndianEnglishVoice(a);
           const bIsFemInd = isFemaleIndianEnglishVoice(b);
           if (aIsFemInd && !bIsFemInd) return -1;
           if (!aIsFemInd && bIsFemInd) return 1;
 
-          const aIsMale = isMaleVoice(a);
-          const bIsMale = isMaleVoice(b);
-          if (!aIsMale && bIsMale) return -1;
-          if (aIsMale && !bIsMale) return 1;
+          const aIsM = isMale(a);
+          const bIsM = isMale(b);
+          if (!aIsM && bIsM) return -1;
+          if (aIsM && !bIsM) return 1;
 
           const aName = (a.name || '').toLowerCase();
           const bName = (b.name || '').toLowerCase();
-          const aIsNatural = aName.includes('natural') || aName.includes('online') || aName.includes('neural');
-          const bIsNatural = bName.includes('natural') || bName.includes('online') || bName.includes('neural');
+          const aIsNatural = aName.includes('natural') || aName.includes('online') || aName.includes('neural') || aName.includes('zira');
+          const bIsNatural = bName.includes('natural') || bName.includes('online') || bName.includes('neural') || bName.includes('zira');
           if (aIsNatural && !bIsNatural) return -1;
           if (!aIsNatural && bIsNatural) return 1;
 
@@ -153,7 +158,8 @@ export function useVoiceAgent({
 
         setAvailableVoices(sortedVoices);
 
-        // 1. Target "that girl voice" - Indian English female voice (Neerja, Heera, Priya, Veena)
+        // Female Indian English priority (Neerja, Heera, Priya, Veena)
+        const femaleIndianVoices = sortedVoices.filter(isFemaleIndianEnglishVoice);
         const bestFemaleIndianVoice =
           femaleIndianVoices.find((v) => (v.name || '').toLowerCase().includes('neerja')) ||
           femaleIndianVoices.find((v) => (v.name || '').toLowerCase().includes('heera')) ||
@@ -161,25 +167,34 @@ export function useVoiceAgent({
           femaleIndianVoices.find((v) => (v.name || '').toLowerCase().includes('veena')) ||
           femaleIndianVoices[0];
 
-        // 2. High quality natural female English fallback (e.g. Jenny, Ava, Samantha, Zira)
-        const naturalFemaleEnglishVoice = englishVoices.find((v) => {
+        // High quality natural female English fallback (Jenny, Ava, Samantha, Zira)
+        const naturalFemaleEnglishVoice = sortedVoices.find((v) => {
           const n = (v.name || '').toLowerCase();
-          return !isMaleVoice(v) && (n.includes('natural') || n.includes('online') || n.includes('neural') || n.includes('zira') || n.includes('samantha') || n.includes('jenny'));
+          return !isMale(v) && (n.includes('zira') || n.includes('natural') || n.includes('online') || n.includes('neural') || n.includes('samantha') || n.includes('jenny') || n.includes('ava') || n.includes('aria'));
         });
 
         const defaultVoice =
           bestFemaleIndianVoice ||
           naturalFemaleEnglishVoice ||
-          sortedVoices.find((v) => !isMaleVoice(v)) ||
+          sortedVoices.find((v) => !isMale(v)) ||
           sortedVoices[0] ||
           null;
+
+        if (defaultVoice) {
+          selectedVoiceRef.current = defaultVoice;
+        }
 
         setSelectedVoice((prev) => {
           if (selectedVoiceName) {
             const found = sortedVoices.find((v) => v.name === selectedVoiceName);
-            if (found) return found;
+            if (found) {
+              selectedVoiceRef.current = found;
+              return found;
+            }
           }
-          return prev || defaultVoice;
+          const chosen = prev || defaultVoice;
+          if (chosen) selectedVoiceRef.current = chosen;
+          return chosen;
         });
 
         if (defaultVoice && !selectedVoiceName && onSelectVoiceName) {
@@ -335,12 +350,67 @@ export function useVoiceAgent({
       const cleanSpokenText = cleanTextForSpeech(text);
       const utterance = new SpeechSynthesisUtterance(cleanSpokenText);
 
-      if (selectedVoice) {
-        utterance.voice = selectedVoice;
-        const vLang = (selectedVoice.lang || '').toLowerCase();
-        utterance.lang = vLang.startsWith('en') ? selectedVoice.lang : 'en-IN';
+      // Dynamically resolve strict female English voice right at time of speaking
+      let voiceToUse: SpeechSynthesisVoice | null = selectedVoiceRef.current || selectedVoice;
+      if (!voiceToUse && synthRef.current) {
+        const liveVoices = synthRef.current.getVoices() || [];
+        const validVoices = liveVoices.filter((v) => v && typeof v.name === 'string');
+
+        const isMale = (v: SpeechSynthesisVoice) => {
+          const n = (v.name || '').toLowerCase();
+          return (
+            n.includes('prabhat') ||
+            n.includes('ravi') ||
+            n.includes('aarav') ||
+            n.includes('rishi') ||
+            n.includes('david') ||
+            n.includes('mark') ||
+            n.includes('guy') ||
+            n.includes('male') ||
+            n.includes('george') ||
+            n.includes('daniel') ||
+            n.includes('alex') ||
+            n.includes('fred') ||
+            n.includes('oliver')
+          );
+        };
+
+        const femaleEnglish = validVoices.filter((v) => {
+          const l = (v.lang || '').toLowerCase();
+          const n = (v.name || '').toLowerCase();
+          if (isMale(v) || l.startsWith('hi') || l.startsWith('bn') || l.startsWith('mr') || n.includes('swara') || n.includes('hindi')) {
+            return false;
+          }
+          return l.startsWith('en') || l === '';
+        });
+
+        // 1. Female Indian English (Neerja, Heera, Priya, Veena)
+        voiceToUse =
+          femaleEnglish.find((v) => (v.name || '').toLowerCase().includes('neerja')) ||
+          femaleEnglish.find((v) => (v.name || '').toLowerCase().includes('heera')) ||
+          femaleEnglish.find((v) => (v.name || '').toLowerCase().includes('priya')) ||
+          femaleEnglish.find((v) => (v.name || '').toLowerCase().includes('veena')) ||
+          femaleEnglish.find((v) => (v.lang || '').toLowerCase().includes('en-in')) ||
+          // 2. High-quality female English fallback (Zira, Jenny, Ava, Samantha)
+          femaleEnglish.find((v) => (v.name || '').toLowerCase().includes('zira')) ||
+          femaleEnglish.find((v) => (v.name || '').toLowerCase().includes('jenny')) ||
+          femaleEnglish.find((v) => (v.name || '').toLowerCase().includes('ava')) ||
+          femaleEnglish.find((v) => (v.name || '').toLowerCase().includes('samantha')) ||
+          femaleEnglish.find((v) => (v.name || '').toLowerCase().includes('female')) ||
+          femaleEnglish[0] ||
+          null;
+
+        if (voiceToUse) {
+          selectedVoiceRef.current = voiceToUse;
+        }
+      }
+
+      if (voiceToUse) {
+        utterance.voice = voiceToUse;
+        utterance.lang = voiceToUse.lang || 'en-US';
       } else {
-        utterance.lang = 'en-IN';
+        // Enforce en-US if no voice object so OS does not choose a Hindi voice
+        utterance.lang = 'en-US';
       }
 
       // Pitch 1.0 (neutral natural pitch prevents robotic distortion); rate 0.98 for optimal diction

@@ -5,7 +5,7 @@ export const INITIAL_ORDERS: Record<string, Order> = {
   'ORD-101': {
     orderId: 'ORD-101',
     customer: 'Priya Sharma',
-    product: 'Vitamin C Serum (30ml)',
+    product: 'Vitamin C Serum',
     value: 699,
     status: 'Out for Delivery',
     notes: 'BlueDart — BD-982103. Expected by 6 PM today',
