@@ -118,12 +118,56 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleTestVoice = () => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+  const handleTestVoice = async () => {
+    if (typeof window === 'undefined') return;
+    setIsPlayingTestVoice(true);
+
+    const testText = "Namaste! I am Aria from Aura Skincare. How can I assist you with your orders and skincare today?";
+    const isNeural =
+      !selectedVoiceName ||
+      selectedVoiceName === 'en-IN-NeerjaExpressiveNeural' ||
+      selectedVoiceName === 'hi-IN-SwaraNeural' ||
+      selectedVoiceName === 'en-IN-PrabhatNeural' ||
+      selectedVoiceName === 'en-IN-NeerjaNeural';
+
+    if (isNeural) {
+      try {
+        const apiBase = process.env.NEXT_PUBLIC_BACKEND_URL || '';
+        const voiceId = selectedVoiceName || 'en-IN-NeerjaExpressiveNeural';
+        const res = await fetch(`${apiBase}/api/tts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: testText, voice: voiceId }),
+        });
+
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const audio = new Audio(url);
+          audio.onended = () => {
+            URL.revokeObjectURL(url);
+            setIsPlayingTestVoice(false);
+          };
+          audio.onerror = () => {
+            URL.revokeObjectURL(url);
+            setIsPlayingTestVoice(false);
+          };
+          await audio.play();
+          return;
+        }
+      } catch (e) {
+        console.warn('Neural test voice fetch failed, falling back to browser speech:', e);
+      }
+    }
+
+    // Fallback: Web Speech
     try {
+      if (!window.speechSynthesis) {
+        setIsPlayingTestVoice(false);
+        return;
+      }
       window.speechSynthesis.cancel();
       window.speechSynthesis.resume();
-      const testText = "Namaste! I am Aria from Aura Skincare. How can I assist you with your orders and skincare today?";
       const utterance = new SpeechSynthesisUtterance(testText);
 
       if (selectedVoiceName) {
@@ -132,10 +176,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         if (match) {
           utterance.voice = match;
           utterance.lang = match.lang || 'en-IN';
+        } else {
+          utterance.lang = 'en-IN';
         }
+      } else {
+        utterance.lang = 'en-IN';
       }
 
-      utterance.rate = 0.98;
+      utterance.rate = 0.95;
       utterance.pitch = 1.0;
       utterance.onstart = () => setIsPlayingTestVoice(true);
       utterance.onend = () => setIsPlayingTestVoice(false);
@@ -242,7 +290,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             <div className="relative">
               <select
-                value={selectedVoiceName}
+                value={selectedVoiceName || 'en-IN-NeerjaExpressiveNeural'}
                 onChange={(e) => {
                   if (onSelectVoiceName) {
                     onSelectVoiceName(e.target.value);
@@ -250,35 +298,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 }}
                 className="w-full py-2.5 px-3 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-aura-400 text-xs bg-white text-stone-800 font-medium"
               >
-                {voices.length === 0 ? (
-                  <option value="">Browser Default Voice</option>
-                ) : (
-                  voices.map((v) => {
-                    const name = v.name || 'Voice';
-                    const lang = (v.lang || '').toLowerCase();
-                    const n = name.toLowerCase();
-                    const isIndian =
-                      lang.includes('en-in') ||
-                      n.includes('neerja') ||
-                      n.includes('heera') ||
-                      n.includes('veena') ||
-                      n.includes('priya') ||
-                      (n.includes('india') && lang.startsWith('en'));
-                    const isEn = lang.startsWith('en');
-                    const isNatural = n.includes('natural') || n.includes('online') || n.includes('neural');
-                    const prefix = isIndian
-                      ? '🇮🇳 [Indian Accent - Recommended] '
-                      : isNatural
-                      ? '⭐ [Natural] '
-                      : isEn
-                      ? '🗣️ [English] '
-                      : '🌐 ';
-                    return (
-                      <option key={name} value={name}>
-                        {prefix}{name} {v.lang ? `(${v.lang})` : ''}
-                      </option>
-                    );
-                  })
+                <optgroup label="🌟 Studio Neural Indian Voices (Warm & Natural)">
+                  <option value="en-IN-NeerjaExpressiveNeural">
+                    🇮🇳 Neerja Expressive (Indian English - Warm &amp; Caring) [Recommended]
+                  </option>
+                  <option value="hi-IN-SwaraNeural">
+                    🇮🇳 Swara (Indian Warm &amp; Melodious)
+                  </option>
+                  <option value="en-IN-PrabhatNeural">
+                    🇮🇳 Prabhat (Indian English - Confident Male)
+                  </option>
+                  <option value="en-IN-NeerjaNeural">
+                    🇮🇳 Neerja (Indian English - Standard)
+                  </option>
+                </optgroup>
+                {voices.length > 0 && (
+                  <optgroup label="💻 Browser Installed System Voices">
+                    {voices.map((v) => {
+                      const name = v.name || 'Voice';
+                      const lang = (v.lang || '').toLowerCase();
+                      const n = name.toLowerCase();
+                      const isIndian =
+                        lang.includes('en-in') ||
+                        lang.includes('hi-in') ||
+                        n.includes('neerja') ||
+                        n.includes('heera') ||
+                        n.includes('veena') ||
+                        n.includes('priya') ||
+                        n.includes('prabhat') ||
+                        n.includes('ravi') ||
+                        (n.includes('india') && lang.startsWith('en'));
+                      const prefix = isIndian ? '🇮🇳 ' : '🌐 ';
+                      return (
+                        <option key={name} value={name}>
+                          {prefix}{name} {v.lang ? `(${v.lang})` : ''}
+                        </option>
+                      );
+                    })}
+                  </optgroup>
                 )}
               </select>
             </div>

@@ -11,6 +11,7 @@ import {
 } from './controllers/orderController';
 import { getAllProducts, getProductById } from './controllers/productController';
 import { handleVoiceChat } from './controllers/chatController';
+import { handleTTS } from './controllers/ttsController';
 import { createCallSummary, getAllCallSummaries } from './controllers/summaryController';
 import { seedDatabase } from './seed';
 
@@ -52,8 +53,9 @@ app.post('/api/orders/reset', resetOrders);
 app.get('/api/products', getAllProducts);
 app.get('/api/products/:id', getProductById);
 
-// Voice Agent AI Chat & Call Summary Routes
+// Voice Agent AI Chat, TTS & Call Summary Routes
 app.post('/api/chat', handleVoiceChat);
+app.post('/api/tts', handleTTS);
 app.post('/api/summary', createCallSummary);
 app.get('/api/summaries', getAllCallSummaries);
 

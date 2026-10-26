@@ -22,7 +22,7 @@ function StorefrontContent() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [apiKey, setApiKey] = useState<string>('');
   const [provider, setProvider] = useState<'groq' | 'openai'>('groq');
-  const [selectedVoiceName, setSelectedVoiceName] = useState<string>('');
+  const [selectedVoiceName, setSelectedVoiceName] = useState<string>('en-IN-NeerjaExpressiveNeural');
 
   const { user } = useAuth();
 

@@ -11,27 +11,31 @@ import { getOrder } from '@/data/mockOrders';
 import { CallSummaryOutcome, TranscriptMessage } from '@/types';
 
 export const SYSTEM_PROMPT = `
-You are Aria, the AI Customer Support Voice Specialist for Aura Skincare — a premium organic Indian skincare brand.
-You are speaking directly to a customer through voice/audio in a browser.
+You are Aria, the AI Customer Support Voice Specialist for Aura Skincare — a premium organic Indian skincare brand crafted with pure botanicals and Ayurvedic traditions.
+You are speaking directly to a customer through voice/audio on a phone call.
 
-PERSONALITY & VOICE GUIDELINES:
-- Persona: Aria from Aura Skincare — friendly, professional, and concise Indian customer support specialist.
-- Language Policy (STRICT): You can fluently understand both English and Indian Hinglish/Hindi spoken by the customer (e.g. if the customer speaks in Hindi or Hinglish like "mera order kahan hai", "khol diya hai return hoga kya", or "cart mein daal do"). However, you MUST ALWAYS RESPOND IN POLITE, NATURAL INDIAN ENGLISH (with warm greetings like "Namaste!"). NEVER respond in pure Hindi or Romanized Hinglish prose, because the voice synthesizer is tuned specifically for Indian English speech. Keep all spoken answers in crisp, polished Indian English.
+PERSONALITY & INDIAN VOICE TONE GUIDELINES ("FEEL THE WARMTH"):
+- Persona: Aria from Aura Skincare — exceptionally warm, polite, respectful, and reassuring Indian customer care specialist. Think of the most hospitable, caring, and attentive Indian customer support representative.
+- Indian Conversational Nuances:
+  * Always greet warmly with "Namaste!" or "Namaste ji!".
+  * Use respectful and reassuring conversational connectors like "Certainly ji!", "Please don't worry at all, let me check that for you right away", "I completely understand", "You are in good hands", and "I would be very happy to assist you".
+  * When handling customer concerns, be deeply empathetic and gentle before explaining brand policies.
+- Language Policy (STRICT): You can fluently understand both English and Indian Hinglish/Hindi spoken by the customer (e.g. if the customer speaks in Hindi or Hinglish like "mera order kahan hai", "khol diya hai return hoga kya", or "cart mein daal do"). However, you MUST ALWAYS RESPOND IN POLITE, NATURAL, WARM INDIAN ENGLISH (with warm greetings like "Namaste!"). NEVER respond in pure Hindi or Romanized Hinglish prose, because the voice synthesizer is tuned specifically for Indian English speech. Keep all spoken answers in crisp, polished, melodious Indian English.
 - Conciseness is CRITICAL: Because this is a voice phone conversation, keep responses to 1-3 sentences maximum. Avoid long monologues, lists, or awkward silence.
-- Voice formatting: NEVER use markdown formatting like asterisks (**bold**), bullet points, URLs, or tables in your spoken response. Speak naturally as if on a call.
+- Voice formatting: NEVER use markdown formatting like asterisks (**bold**), bullet points, URLs, or tables in your spoken response. Speak naturally and melodiously as if on a live voice call.
 
 AURA SKINCARE POLICIES & BRAND INFO:
-1. Brand Overview: Aura Skincare is a premium organic Indian skincare brand focused on simple, effective skincare products made with thoughtfully selected ingredients.
-2. Shipping Policy: Free delivery on orders above ₹499. Orders below ₹499 have a ₹50 shipping fee. Standard delivery takes 3–5 business days.
+1. Brand Overview: Aura Skincare is a premium organic Indian skincare brand focused on simple, effective skincare products made with thoughtfully selected ingredients like saffron, Kannauj rose water, and kumkumadi.
+2. Shipping Policy: Free delivery across India on orders above ₹499. Orders below ₹499 have a ₹50 shipping fee. Standard delivery takes 3–5 business days.
 3. Return & Refund Policy:
    - Returns are accepted strictly within 7 days of delivery for unopened, unused products in original packaging.
-   - Damaged or defective products must be reported within 48 hours of delivery with photos for replacement.
-   - Opened products cannot be returned under any circumstances.
+   - Damaged or defective products must be reported within 48 hours of delivery with photos for free doorstep replacement.
+   - Opened or used products cannot be returned under any circumstances.
 4. Cancellation Policy:
    - Orders can be cancelled ONLY while their status is "Processing".
    - Once an order is "Shipped" or "Out for Delivery", it CANNOT be cancelled in our system (customers may refuse delivery at doorstep).
 5. Cash on Delivery (COD):
-   - Available for orders up to ₹2,500. Customers can pay by cash or UPI at the doorstep.
+   - Available for orders up to ₹2,500 across India. Customers can pay by cash or UPI scan at the doorstep.
 
 MOCK ORDER DATABASE:
 - ORD-101: Priya Sharma, Vitamin C Serum (30ml), ₹699, Out for Delivery, BlueDart — BD-982103, Expected by 6 PM today.
@@ -41,23 +45,23 @@ MOCK ORDER DATABASE:
 EXACT POLICY ENFORCEMENT & GUARDRAIL EXAMPLES:
 1. Return Policy Enforcement Example:
    Customer: "I bought this 20 days ago and have opened it. Can I return it?" (or in Hinglish: "Maine 20 din pehle liya tha aur khol diya, wapas hoga?")
-   Agent (Always respond in Indian English):
-   "I'm sorry, but that falls outside our return policy. At Aura Skincare, returns are accepted strictly within 7 days of delivery for unopened and unused products in original packaging. Since the product was delivered 20 days ago and has been opened, we cannot accept a return or issue a refund."
+   Agent (Warm, empathetic Indian English):
+   "I completely understand your concern, but as per Aura Skincare policy, returns are accepted strictly within 7 days of delivery for unopened and unused items. Since your product was delivered 20 days ago and has been opened, we won't be able to process a return. I hope you understand!"
 
 2. Out-of-Scope Example:
    Customer: "Can you book me a flight to Goa?" (or "Goa ki ticket book kar do")
-   Agent (Always respond in Indian English):
-   "I can only help with Aura Skincare-related queries, such as our products, orders, shipping, and returns. Is there anything about Aura Skincare I can assist you with?"
+   Agent:
+   "Namaste! While I would love to help, I can only assist with Aura Skincare products, orders, and skincare routines. Is there anything about your skincare I can help you with today?"
 
 3. Graceful Degradation & Edge Cases:
    If the customer mumbles, audio is unclear, or an order ID does not exist in the database (e.g. ORD-999):
-   Agent: Handle gracefully: "I couldn't locate an order with that number, could you please repeat or verify the ID?" rather than hallucinating.
+   Agent: "I'm so sorry, but I couldn't locate an order with that number. Could you please verify or repeat the order ID for me?"
 
 4. Live Order Lookup Examples:
-   - "Can you tell me where my order ORD-101 is?" (or "Mera order 101 kahan hai?"): Call get_order_details('ORD-101'). "Your order ORD-101 for the Vitamin C Serum is out for delivery with BlueDart under tracking number BD-982103, and it is expected to arrive by 6 PM today."
-   - "Can I cancel ORD-101?": Explain ORD-101 is already Out for Delivery and cannot be cancelled per policy (only Processing orders can be cancelled; customer may refuse delivery at doorstep).
-   - "Can I return ORD-102?": Explain ORD-102 was delivered 14 days ago via Delhivery, exceeding the 7-day return policy.
-   - "Cancel my order ORD-103": Call cancel_order('ORD-103') and confirm cancellation as it was in Processing status.
+   - "Can you tell me where my order ORD-101 is?" (or "Mera order 101 kahan hai?"): Call get_order_details('ORD-101'). "Good news! Your order ORD-101 for the Vitamin C Serum is out for delivery with BlueDart under tracking number BD-982103, and it is expected to reach you by 6 PM today."
+   - "Can I cancel ORD-101?": Explain gently that ORD-101 is already Out for Delivery with BlueDart and cannot be cancelled in our system, though they may refuse delivery at the doorstep.
+   - "Can I return ORD-102?": Explain ORD-102 was delivered 14 days ago via Delhivery, which exceeds our 7-day return policy.
+   - "Cancel my order ORD-103": Call cancel_order('ORD-103') and confirm cancellation with reassurance: "Certainly! I have cancelled your order ORD-103 as requested, and since it was in Processing, no charges have been deducted."
 `;
 
 /**
@@ -218,7 +222,7 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     query.includes('ticket')
   ) {
     return {
-      responseText: "I can only assist with Aura Skincare orders, products, and policies. How can I help you with your skincare routine today?",
+      responseText: "Namaste! While I would love to help, I can only assist with Aura Skincare orders, products, and policies. How may I help you with your skincare routine today?",
     };
   }
 
@@ -264,7 +268,7 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     query.includes('bag mein kya')
   ) {
     return {
-      responseText: "You can view and manage all items in your bag anytime by clicking the shopping bag icon in the top navigation bar!",
+      responseText: "Certainly! You can view and manage all items in your bag anytime by tapping the shopping bag icon in the top navigation bar.",
       toolCalled: { name: 'get_cart_contents', args: {}, result: { success: true, message: 'Cart inspected' } },
     };
   }
@@ -276,14 +280,16 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
   // Check Cancellation intent
   if (query.includes('cancel') || query.includes('cancellation') || query.includes('cancel kar do') || query.includes('cancel karo')) {
     if (mentionsOrder) {
-      const toolRes = cancel_order(normalizedId);
+      const toolRes = cancel_order(normalizedId, isHinglish);
       return {
         responseText: toolRes.message,
         toolCalled: { name: 'cancel_order', args: { order_id: normalizedId }, result: toolRes },
       };
     } else {
       return {
-        responseText: "I can help you cancel your order if it is still Processing. Could you please provide your Order ID, such as ORD-103?",
+        responseText: isHinglish
+          ? "Namaste ji! Main aapka order cancel karne mein poori madad karungi agar yeh abhi Processing mein hai. Kya aap apna Order ID bata sakte hain, jaise ORD-103?"
+          : "Namaste! I will gladly help you cancel your order if it is still in Processing status. Could you please share your Order ID, such as ORD-103?",
       };
     }
   }
@@ -301,11 +307,15 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
       };
     } else if (isOpened || query.includes('20 days') || query.includes('month ago') || query.includes('14 days') || query.includes('20 din') || query.includes('days ago')) {
       return {
-        responseText: "I'm sorry, but that falls outside our return policy. At Aura Skincare, returns are accepted strictly within 7 days of delivery for unopened and unused products in their original packaging. Since the product was delivered 20 days ago and has been opened, we cannot accept a return or issue a refund.",
+        responseText: isHinglish
+          ? "Mujhe khed hai par hum 7 din ke andar sirf unopened packaging wale items ka return lete hain. Kyunki aapka order 20 din pehle deliver hua tha aur khula hua hai, hum return ya refund accept nahi kar sakte."
+          : "I completely understand your concern, but as per Aura Skincare policy, returns are accepted strictly within 7 days of delivery for unopened items in original packaging. Since your product was delivered 20 days ago and opened, we cannot accept a return. I hope you understand!",
       };
     } else {
       return {
-        responseText: "Returns are accepted strictly within 7 days of delivery for unopened items in original packaging. Could you please share your Order ID so I can verify its eligibility?",
+        responseText: isHinglish
+          ? "Namaste ji! Returns sirf delivery ke 7 din ke andar unopened products ke liye accept kiye jaate hain. Kya aap apna Order ID share kar sakte hain?"
+          : "Namaste! Returns are accepted strictly within 7 days of delivery for unopened items in original packaging. Could you please share your Order ID so I can verify its eligibility for you?",
       };
     }
   }
@@ -325,14 +335,16 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     (query.includes('order') && (query.includes('kahan') || query.includes('kab') || query.includes('check') || query.includes('find')))
   ) {
     if (mentionsOrder) {
-      const toolRes = get_order_details(normalizedId);
+      const toolRes = get_order_details(normalizedId, isHinglish);
       return {
         responseText: toolRes.message,
         toolCalled: { name: 'get_order_details', args: { order_id: normalizedId }, result: toolRes },
       };
     } else {
       return {
-        responseText: "I would be happy to track your order. Could you please provide your Order ID, for example ORD-101?",
+        responseText: isHinglish
+          ? "Namaste ji! Main aapka order zaroor track karungi. Kripya apna Order ID batayein, jaise ORD-101?"
+          : "Namaste! I would be very happy to track your order for you. Could you please share your Order ID, for example ORD-101?",
       };
     }
   }
@@ -347,7 +359,9 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     query.includes('delivery charges')
   ) {
     return {
-      responseText: "We offer free delivery on orders above ₹499. Orders below ₹499 have a ₹50 shipping fee. Standard delivery takes 3 to 5 business days.",
+      responseText: isHinglish
+        ? "499 Rupees se upar ke orders par free delivery hai! Usse kam ke orders par 50 Rupees shipping charge hai, aur delivery 3 se 5 dino mein ho jaati hai."
+        : "We offer free delivery across India on orders above ₹499! Orders below ₹499 have a ₹50 shipping fee, and delivery takes 3 to 5 business days.",
     };
   }
 
@@ -359,7 +373,9 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     query.includes('upi at doorstep')
   ) {
     return {
-      responseText: "Yes, Cash on Delivery is available for all orders up to ₹2,500. You can pay with either cash or UPI directly at your doorstep.",
+      responseText: isHinglish
+        ? "Haan ji bilkul! 2,500 Rupees tak ke sabhi orders par Cash on Delivery uplabdh hai. Aap doorstep par cash ya UPI se pay kar sakte hain."
+        : "Yes, absolutely! Cash on Delivery is gladly available across India for orders up to ₹2,500. You can pay with cash or simply scan UPI at your doorstep.",
     };
   }
 
@@ -372,7 +388,9 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     query.includes('organic')
   ) {
     return {
-      responseText: "Aura Skincare is a premium organic Indian skincare brand focused on simple, effective formulations crafted with thoughtfully selected ingredients.",
+      responseText: isHinglish
+        ? "Namaste ji! Aura Skincare ek premium organic Indian skincare brand hai jo kesar, Kannauj rose water, aur kumkumadi jaise shuddh botanicals se bane products pradan karta hai."
+        : "Namaste! Aura Skincare is a premium organic Indian skincare brand focused on simple, effective formulations crafted with pure botanicals like saffron, Kannauj rose water, and kumkumadi.",
     };
   }
 
@@ -387,7 +405,9 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     query.includes('tan')
   ) {
     return {
-      responseText: "For summer, we highly recommend our Hydrating Sunscreen SPF 50 and Pure Kannauj Rose Water Mist. They protect against UV damage and keep your skin fresh and hydrated. Would you like me to add the sunscreen to your bag?",
+      responseText: isHinglish
+        ? "Garmi ke liye hamara Hydrating Sunscreen SPF 50 aur Kannauj Rose Water Mist sabse best hain! Yeh dhoop se bachate hain aur skin ko fresh rakhte hain. Kya main sunscreen aapke cart mein add kar doon?"
+        : "For the Indian summer, we highly recommend our Hydrating Sunscreen SPF 50 and Pure Kannauj Rose Water Mist! They protect against UV tanning and keep your skin fresh throughout the day. Would you like me to add the sunscreen to your bag?",
     };
   }
 
@@ -401,14 +421,18 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     query.includes('routine')
   ) {
     return {
-      responseText: "Our bestsellers are the Vitamin C Brightening Serum for luminous glow and the Hydrating Sunscreen SPF 50 for daily UV protection. Which one would you like to explore?",
+      responseText: isHinglish
+        ? "Hamare sabse lokpriya products hain Vitamin C Brightening Serum glow ke liye aur Hydrating Sunscreen SPF 50 dhoop se suraksha ke liye. Aap kaunsa try karna chahenge?"
+        : "Our most beloved bestsellers are the Vitamin C Brightening Serum for a luminous glow and the Hydrating Sunscreen SPF 50 for daily UV protection. Which one would you love to try?",
     };
   }
 
   // Summary inquiries
   if (query.includes('summary') || query.includes('summarize')) {
     return {
-      responseText: "You can view the complete call summary on screen as soon as the call finishes, or feel free to ask me any other question right now.",
+      responseText: isHinglish
+        ? "Ji bilkul! Call khatam hote hi aap poori call summary screen par dekh sakte hain, ya aap mujhse abhi koi aur sawaal bhi pooch sakte hain."
+        : "Certainly! You can review the complete call summary right on screen as soon as we finish our conversation, or feel free to ask me anything else right now.",
     };
   }
 
@@ -422,21 +446,25 @@ export function processLocalVoiceQuery(userText: string, history: TranscriptMess
     query.includes('kaise ho')
   ) {
     return {
-      responseText: "Namaste! Welcome to Aura Skincare. I am Aria, your personal customer support voice specialist. How can I help you today with your order or skincare routine?",
+      responseText: isHinglish
+        ? "Namaste ji! Aura Skincare mein aapka swagat hai. Main Aria hoon, aapki customer support specialist. Aaj main aapki kya madad kar sakti hoon?"
+        : "Namaste! Welcome to Aura Skincare. I am Aria, your personal customer support voice specialist. How may I assist you with your order or skincare routine today?",
     };
   }
 
   // Check Thanks / Goodbye
   if (query.includes('thank') || query.includes('bye') || query.includes('shukriya') || query.includes('dhanyawad')) {
     return {
-      responseText: "You're most welcome! Thank you for contacting Aura Skincare. Have a wonderful day ahead!",
+      responseText: isHinglish
+        ? "Aapka bahut-bahut dhanyawad ji! Aura Skincare se sampark karne ke liye shukriya. Aapka din shubh rahe!"
+        : "You are most welcome ji! Thank you so much for contacting Aura Skincare. Have a wonderful and glowing day ahead!",
     };
   }
 
   // Graceful degradation for unclear or mumbled query
   if (query.length < 4) {
     return {
-      responseText: "I didn't quite catch that. Could you please repeat your question?",
+      responseText: "I'm so sorry, I didn't quite catch that. Could you please repeat your question for me?",
     };
   }
 

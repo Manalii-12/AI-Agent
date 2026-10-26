@@ -80,9 +80,9 @@ export const VoiceAgentSection: React.FC<VoiceAgentSectionProps> = ({
               <h2 className="font-serif text-xl sm:text-2xl font-bold text-stone-900 tracking-tight">
                 Aria <span className="text-aura-700 font-sans text-sm font-medium">— AI Voice CX Specialist</span>
               </h2>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300/80 shadow-xs">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Live Web Speech Ready
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-300/80 shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                🇮🇳 Authentic Indian Voice Active
               </span>
             </div>
             <p className="text-xs text-stone-500 mt-1 max-w-xl">

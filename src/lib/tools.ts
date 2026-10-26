@@ -59,13 +59,15 @@ export function normalizeOrderId(rawInput: string): string {
 /**
  * Required tool: get_order_details(order_id)
  */
-export function get_order_details(order_id: string): ToolResult {
+export function get_order_details(order_id: string, isHinglish: boolean = false): ToolResult {
   const normalizedId = normalizeOrderId(order_id);
   
   if (!normalizedId) {
     return {
       success: false,
-      message: "I would be happy to track your order. Could you please provide your Order ID, for example ORD-101?",
+      message: isHinglish
+        ? "Namaste ji! Main aapka order zaroor track karungi. Kya aap apna Order ID bata sakte hain, jaise ORD-101?"
+        : "Namaste! I would be very happy to track your order. Could you please provide your Order ID, for example ORD-101?",
     };
   }
 
@@ -74,22 +76,34 @@ export function get_order_details(order_id: string): ToolResult {
   if (!order) {
     return {
       success: false,
-      message: `I couldn't locate an order with that number, could you please repeat or verify the ID?`,
+      message: isHinglish
+        ? `Mujhe is number ka koi order nahi mila, kya aap apna Order ID repeat kar sakte hain?`
+        : `I couldn't locate an order with that number, could you please repeat or verify the ID?`,
       data: { searchedId: normalizedId, availableSampleOrders: ['ORD-101', 'ORD-102', 'ORD-103'] },
     };
   }
 
   let statusDescription = '';
   if (order.status === 'Out for Delivery') {
-    statusDescription = `Your order ${order.orderId} for the ${order.product} is out for delivery with ${order.courier || 'BlueDart'} under tracking number ${order.trackingNumber || 'BD-982103'}, and it is expected to arrive by 6 PM today.`;
+    statusDescription = isHinglish
+      ? `Aapka order ${order.orderId} ${order.product} ke liye BlueDart se out for delivery hai aur aaj shaam 6 baje tak deliver ho jayega.`
+      : `Good news! Your order ${order.orderId} for the ${order.product} is out for delivery with ${order.courier || 'BlueDart'} under tracking number ${order.trackingNumber || 'BD-982103'}, and it is expected to reach you by 6 PM today.`;
   } else if (order.status === 'Delivered') {
-    statusDescription = `Your order ${order.orderId} for the ${order.product} was delivered ${order.deliveredDaysAgo || 14} days ago via ${order.courier || 'Delhivery'}.`;
+    statusDescription = isHinglish
+      ? `Aapka order ${order.orderId} ${order.product} ke liye ${order.deliveredDaysAgo || 14} din pehle Delhivery se deliver ho chuka hai.`
+      : `Your order ${order.orderId} for the ${order.product} was delivered ${order.deliveredDaysAgo || 14} days ago via ${order.courier || 'Delhivery'}.`;
   } else if (order.status === 'Processing') {
-    statusDescription = `Your order ${order.orderId} for ${order.product} was placed ${order.orderPlacedHoursAgo || 3} hours ago and is currently in Processing status.`;
+    statusDescription = isHinglish
+      ? `Aapka order ${order.orderId} lagbhag ${order.orderPlacedHoursAgo || 3} ghante pehle place hua tha aur abhi Processing status mein hai.`
+      : `Your order ${order.orderId} for ${order.product} was placed ${order.orderPlacedHoursAgo || 3} hours ago and is currently in Processing status.`;
   } else if (order.status === 'Cancelled') {
-    statusDescription = `Your order ${order.orderId} has been cancelled.`;
+    statusDescription = isHinglish
+      ? `Aapka order ${order.orderId} cancel ho chuka hai.`
+      : `Your order ${order.orderId} has been cancelled.`;
   } else {
-    statusDescription = `Your order ${order.orderId} is currently in ${order.status} status.`;
+    statusDescription = isHinglish
+      ? `Aapka order ${order.orderId} abhi ${order.status} status mein hai.`
+      : `Your order ${order.orderId} is currently in ${order.status} status.`;
   }
 
   return {
@@ -103,14 +117,16 @@ export function get_order_details(order_id: string): ToolResult {
  * Tool: cancel_order(order_id)
  * Follows brand policy: Only 'Processing' orders can be cancelled.
  */
-export function cancel_order(order_id: string): ToolResult {
+export function cancel_order(order_id: string, isHinglish: boolean = false): ToolResult {
   const normalizedId = normalizeOrderId(order_id);
   const order = getOrder(normalizedId);
 
   if (!order) {
     return {
       success: false,
-      message: `I couldn't locate order ${normalizedId} to cancel. Please check the order number.`,
+      message: isHinglish
+        ? `Mujhe cancel karne ke liye order ${normalizedId} nahi mila. Kripya number check karein.`
+        : `I couldn't locate order ${normalizedId} to cancel. Please check the order number.`,
     };
   }
 
@@ -118,7 +134,9 @@ export function cancel_order(order_id: string): ToolResult {
     updateOrderStatus(normalizedId, 'Cancelled', 'Cancelled per customer voice request');
     return {
       success: true,
-      message: `Your order ${normalizedId} has been successfully cancelled. Since it was in Processing status, no charges will apply.`,
+      message: isHinglish
+        ? `Ji bilkul! Aapka order ${normalizedId} successfully cancel ho gaya hai. Kyunki yeh Processing status mein tha, koi charge nahi lagega.`
+        : `Certainly! Your order ${normalizedId} has been successfully cancelled. Since it was in Processing status, no charges will apply.`,
       data: getOrder(normalizedId),
     };
   }
@@ -126,7 +144,9 @@ export function cancel_order(order_id: string): ToolResult {
   if (order.status === 'Out for Delivery' || order.status === 'Shipped') {
     return {
       success: false,
-      message: `Per Aura Skincare policy, orders cannot be cancelled once they are ${order.status}. However, you can refuse the package at the doorstep when delivery is attempted.`,
+      message: isHinglish
+        ? `Aura Skincare policy ke mutabiq, ${order.status} order system se cancel nahi ho sakte. Par jab courier deliver karne aaye toh aap delivery lene se mana kar sakte hain.`
+        : `Per Aura Skincare policy, orders cannot be cancelled once they are ${order.status}. However, you can refuse the package at the doorstep when delivery is attempted.`,
       data: order,
     };
   }
@@ -134,14 +154,16 @@ export function cancel_order(order_id: string): ToolResult {
   if (order.status === 'Delivered') {
     return {
       success: false,
-      message: `Order ${normalizedId} has already been delivered. Cancellation is not possible, but you may request a return within 7 days if the product is unopened.`,
+      message: isHinglish
+        ? `Order ${normalizedId} pehle hi deliver ho chuka hai, isliye cancel nahi ho sakta. Agar product unopened hai toh aap 7 din ke andar return kar sakte hain.`
+        : `Order ${normalizedId} has already been delivered. Cancellation is not possible, but you may request a return within 7 days if the product is unopened.`,
       data: order,
     };
   }
 
   return {
     success: false,
-    message: `Order ${normalizedId} is already ${order.status}.`,
+    message: isHinglish ? `Order ${normalizedId} pehle hi ${order.status} hai.` : `Order ${normalizedId} is already ${order.status}.`,
     data: order,
   };
 }

@@ -18,7 +18,7 @@ export function useVoiceAgent({
   provider = 'groq',
   customerName,
   onStateChange,
-  selectedVoiceName,
+  selectedVoiceName = 'en-IN-NeerjaExpressiveNeural',
   onSelectVoiceName,
 }: UseVoiceAgentProps = {}) {
   const [state, setState] = useState<AgentState>('idle');
@@ -45,6 +45,7 @@ export function useVoiceAgent({
   const micStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const audioCooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
   const interimBufferRef = useRef<string>('');
@@ -78,21 +79,30 @@ export function useVoiceAgent({
 
         const validVoices = allVoices.filter((v) => v && typeof v.name === 'string');
 
-        // Exclude raw non-English (Hindi, Marathi, Bengali) and all male voices
-        const englishVoices = validVoices.filter((v) => {
+        const isIndianVoice = (v: SpeechSynthesisVoice) => {
           const l = (v.lang || '').toLowerCase();
           const n = (v.name || '').toLowerCase();
-          if (l.startsWith('hi') || l.startsWith('bn') || l.startsWith('mr') || l.startsWith('ta') || n.includes('swara') || n.includes('hindi')) {
-            return false;
-          }
-          return l.startsWith('en') || l === '';
-        });
+          return (
+            l.includes('en-in') ||
+            l.includes('hi-in') ||
+            n.includes('neerja') ||
+            n.includes('heera') ||
+            n.includes('swara') ||
+            n.includes('priya') ||
+            n.includes('veena') ||
+            n.includes('prabhat') ||
+            n.includes('ravi') ||
+            n.includes('madhur') ||
+            (n.includes('india') && (l.startsWith('en') || l.startsWith('hi')))
+          );
+        };
 
         const isMale = (v: SpeechSynthesisVoice) => {
           const n = (v.name || '').toLowerCase();
           return (
             n.includes('prabhat') ||
             n.includes('ravi') ||
+            n.includes('madhur') ||
             n.includes('aarav') ||
             n.includes('rishi') ||
             n.includes('david') ||
@@ -118,28 +128,11 @@ export function useVoiceAgent({
           );
         };
 
-        const isFemaleIndianEnglishVoice = (v: SpeechSynthesisVoice) => {
-          const l = (v.lang || '').toLowerCase();
-          const n = (v.name || '').toLowerCase();
-          if (isMale(v)) return false;
-          if (l.startsWith('hi') || l.startsWith('mr') || l.startsWith('bn')) return false;
-
-          return (
-            n.includes('neerja') ||
-            n.includes('heera') ||
-            n.includes('priya') ||
-            n.includes('veena') ||
-            (l.includes('en-in') && !isMale(v)) ||
-            (n.includes('india') && l.startsWith('en') && !isMale(v))
-          );
-        };
-
-        const candidateVoices = englishVoices.filter((v) => !isMale(v));
-        const sortedVoices = [...(candidateVoices.length > 0 ? candidateVoices : validVoices)].sort((a, b) => {
-          const aIsFemInd = isFemaleIndianEnglishVoice(a);
-          const bIsFemInd = isFemaleIndianEnglishVoice(b);
-          if (aIsFemInd && !bIsFemInd) return -1;
-          if (!aIsFemInd && bIsFemInd) return 1;
+        const sortedVoices = [...validVoices].sort((a, b) => {
+          const aIsInd = isIndianVoice(a);
+          const bIsInd = isIndianVoice(b);
+          if (aIsInd && !bIsInd) return -1;
+          if (!aIsInd && bIsInd) return 1;
 
           const aIsM = isMale(a);
           const bIsM = isMale(b);
@@ -148,8 +141,8 @@ export function useVoiceAgent({
 
           const aName = (a.name || '').toLowerCase();
           const bName = (b.name || '').toLowerCase();
-          const aIsNatural = aName.includes('natural') || aName.includes('online') || aName.includes('neural') || aName.includes('zira');
-          const bIsNatural = bName.includes('natural') || bName.includes('online') || bName.includes('neural') || bName.includes('zira');
+          const aIsNatural = aName.includes('natural') || aName.includes('online') || aName.includes('neural');
+          const bIsNatural = bName.includes('natural') || bName.includes('online') || bName.includes('neural');
           if (aIsNatural && !bIsNatural) return -1;
           if (!aIsNatural && bIsNatural) return 1;
 
@@ -159,26 +152,17 @@ export function useVoiceAgent({
         setAvailableVoices(sortedVoices);
 
         // Female Indian English priority (Neerja, Heera, Priya, Veena)
-        const femaleIndianVoices = sortedVoices.filter(isFemaleIndianEnglishVoice);
+        const femaleIndianVoices = sortedVoices.filter((v) => isIndianVoice(v) && !isMale(v));
         const bestFemaleIndianVoice =
           femaleIndianVoices.find((v) => (v.name || '').toLowerCase().includes('neerja')) ||
           femaleIndianVoices.find((v) => (v.name || '').toLowerCase().includes('heera')) ||
+          femaleIndianVoices.find((v) => (v.name || '').toLowerCase().includes('swara')) ||
           femaleIndianVoices.find((v) => (v.name || '').toLowerCase().includes('priya')) ||
           femaleIndianVoices.find((v) => (v.name || '').toLowerCase().includes('veena')) ||
-          femaleIndianVoices[0];
+          femaleIndianVoices[0] ||
+          sortedVoices.find((v) => isIndianVoice(v));
 
-        // High quality natural female English fallback (Jenny, Ava, Samantha, Zira)
-        const naturalFemaleEnglishVoice = sortedVoices.find((v) => {
-          const n = (v.name || '').toLowerCase();
-          return !isMale(v) && (n.includes('zira') || n.includes('natural') || n.includes('online') || n.includes('neural') || n.includes('samantha') || n.includes('jenny') || n.includes('ava') || n.includes('aria'));
-        });
-
-        const defaultVoice =
-          bestFemaleIndianVoice ||
-          naturalFemaleEnglishVoice ||
-          sortedVoices.find((v) => !isMale(v)) ||
-          sortedVoices[0] ||
-          null;
+        const defaultVoice = bestFemaleIndianVoice || sortedVoices[0] || null;
 
         if (defaultVoice) {
           selectedVoiceRef.current = defaultVoice;
@@ -198,7 +182,7 @@ export function useVoiceAgent({
         });
 
         if (defaultVoice && !selectedVoiceName && onSelectVoiceName) {
-          onSelectVoiceName(defaultVoice.name);
+          onSelectVoiceName('en-IN-NeerjaExpressiveNeural');
         }
       } catch (err) {
         console.warn('SpeechSynthesis voice initialization safely handled:', err);
@@ -313,13 +297,9 @@ export function useVoiceAgent({
     }
   }, []);
 
-  // Speak agent message using Web SpeechSynthesis with Chrome keep-alive, echo prevention, and text sanitization
+  // Speak agent message using Neural Indian TTS with browser SpeechSynthesis fallback
   const speakAgentResponse = useCallback(
-    (text: string, onEndCallback?: () => void) => {
-      if (!synthRef.current) {
-        if (onEndCallback) onEndCallback();
-        return;
-      }
+    async (text: string, onEndCallback?: () => void) => {
 
       // 1. Immediately lock speaking state and abort recognition to prevent laptop speaker from echoing into mic
       isSpeakingRef.current = true;
@@ -336,139 +316,211 @@ export function useVoiceAgent({
         audioCooldownTimerRef.current = null;
       }
 
-      // 3. Cancel previous speech if running, and resume if paused
-      try {
-        if (synthRef.current.speaking || synthRef.current.pending) {
-          synthRef.current.cancel();
-        }
-        if (synthRef.current.paused) {
-          synthRef.current.resume();
-        }
-      } catch (e) {}
+      // 3. Stop any existing audio or speech
+      if (currentAudioRef.current) {
+        try {
+          currentAudioRef.current.pause();
+          currentAudioRef.current.currentTime = 0;
+        } catch (e) {}
+        currentAudioRef.current = null;
+      }
+
+      if (synthRef.current) {
+        try {
+          if (synthRef.current.speaking || synthRef.current.pending) {
+            synthRef.current.cancel();
+          }
+          if (synthRef.current.paused) {
+            synthRef.current.resume();
+          }
+        } catch (e) {}
+      }
 
       // 4. Sanitize text so words like "summer", product IDs, and numbers pronounce accurately
       const cleanSpokenText = cleanTextForSpeech(text);
-      const utterance = new SpeechSynthesisUtterance(cleanSpokenText);
 
-      // Dynamically resolve strict female English voice right at time of speaking
-      let voiceToUse: SpeechSynthesisVoice | null = selectedVoiceRef.current || selectedVoice;
-      if (!voiceToUse && synthRef.current) {
-        const liveVoices = synthRef.current.getVoices() || [];
-        const validVoices = liveVoices.filter((v) => v && typeof v.name === 'string');
+      const speakWithBrowserSpeech = (cleanText: string, onEnd?: () => void) => {
+        if (!synthRef.current) {
+          if (onEnd) onEnd();
+          return;
+        }
 
-        const isMale = (v: SpeechSynthesisVoice) => {
-          const n = (v.name || '').toLowerCase();
-          return (
-            n.includes('prabhat') ||
-            n.includes('ravi') ||
-            n.includes('aarav') ||
-            n.includes('rishi') ||
-            n.includes('david') ||
-            n.includes('mark') ||
-            n.includes('guy') ||
-            n.includes('male') ||
-            n.includes('george') ||
-            n.includes('daniel') ||
-            n.includes('alex') ||
-            n.includes('fred') ||
-            n.includes('oliver')
-          );
-        };
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        let voiceToUse: SpeechSynthesisVoice | null = selectedVoiceRef.current || selectedVoice;
 
-        const femaleEnglish = validVoices.filter((v) => {
-          const l = (v.lang || '').toLowerCase();
-          const n = (v.name || '').toLowerCase();
-          if (isMale(v) || l.startsWith('hi') || l.startsWith('bn') || l.startsWith('mr') || n.includes('swara') || n.includes('hindi')) {
-            return false;
+        if (!voiceToUse && synthRef.current) {
+          const liveVoices = synthRef.current.getVoices() || [];
+          const validVoices = liveVoices.filter((v) => v && typeof v.name === 'string');
+
+          const isIndianVoice = (v: SpeechSynthesisVoice) => {
+            const l = (v.lang || '').toLowerCase();
+            const n = (v.name || '').toLowerCase();
+            return (
+              l.includes('en-in') ||
+              l.includes('hi-in') ||
+              n.includes('neerja') ||
+              n.includes('heera') ||
+              n.includes('swara') ||
+              n.includes('priya') ||
+              n.includes('veena') ||
+              n.includes('prabhat') ||
+              n.includes('ravi')
+            );
+          };
+
+          const indianVoices = validVoices.filter(isIndianVoice);
+          voiceToUse =
+            indianVoices.find((v) => (v.name || '').toLowerCase().includes('neerja')) ||
+            indianVoices.find((v) => (v.name || '').toLowerCase().includes('heera')) ||
+            indianVoices.find((v) => (v.name || '').toLowerCase().includes('swara')) ||
+            indianVoices.find((v) => (v.name || '').toLowerCase().includes('priya')) ||
+            indianVoices[0] ||
+            validVoices.find((v) => (v.lang || '').toLowerCase().includes('en-in')) ||
+            validVoices[0] ||
+            null;
+
+          if (voiceToUse) {
+            selectedVoiceRef.current = voiceToUse;
           }
-          return l.startsWith('en') || l === '';
-        });
-
-        // 1. Female Indian English (Neerja, Heera, Priya, Veena)
-        voiceToUse =
-          femaleEnglish.find((v) => (v.name || '').toLowerCase().includes('neerja')) ||
-          femaleEnglish.find((v) => (v.name || '').toLowerCase().includes('heera')) ||
-          femaleEnglish.find((v) => (v.name || '').toLowerCase().includes('priya')) ||
-          femaleEnglish.find((v) => (v.name || '').toLowerCase().includes('veena')) ||
-          femaleEnglish.find((v) => (v.lang || '').toLowerCase().includes('en-in')) ||
-          // 2. High-quality female English fallback (Zira, Jenny, Ava, Samantha)
-          femaleEnglish.find((v) => (v.name || '').toLowerCase().includes('zira')) ||
-          femaleEnglish.find((v) => (v.name || '').toLowerCase().includes('jenny')) ||
-          femaleEnglish.find((v) => (v.name || '').toLowerCase().includes('ava')) ||
-          femaleEnglish.find((v) => (v.name || '').toLowerCase().includes('samantha')) ||
-          femaleEnglish.find((v) => (v.name || '').toLowerCase().includes('female')) ||
-          femaleEnglish[0] ||
-          null;
+        }
 
         if (voiceToUse) {
-          selectedVoiceRef.current = voiceToUse;
+          utterance.voice = voiceToUse;
+          utterance.lang = voiceToUse.lang || 'en-IN';
+        } else {
+          utterance.lang = 'en-IN';
+        }
+
+        utterance.rate = 0.95;
+        utterance.pitch = 1.0;
+
+        activeUtteranceRef.current = utterance;
+        if (typeof window !== 'undefined') {
+          (window as any)._activeUtterance = utterance;
+        }
+
+        utterance.onstart = () => {
+          isSpeakingRef.current = true;
+          setState('speaking');
+        };
+
+        utterance.onend = () => {
+          isSpeakingRef.current = false;
+          activeUtteranceRef.current = null;
+          if (isCallActiveRef.current) {
+            setState('listening');
+            audioCooldownTimerRef.current = setTimeout(() => {
+              if (isCallActiveRef.current && !isSpeakingRef.current && stateRef.current === 'listening') {
+                startRecognitionSafe();
+              }
+            }, 350);
+          }
+          if (onEnd) onEnd();
+        };
+
+        utterance.onerror = (e) => {
+          console.warn('SpeechSynthesis error:', e);
+          isSpeakingRef.current = false;
+          activeUtteranceRef.current = null;
+          if (isCallActiveRef.current) {
+            setState('listening');
+            startRecognitionSafe();
+          }
+          if (onEnd) onEnd();
+        };
+
+        try {
+          synthRef.current.speak(utterance);
+        } catch (err) {
+          console.warn('SpeechSynthesis speak failed:', err);
+          if (onEnd) onEnd();
+        }
+      };
+
+      // Check if Neural Indian Voice should be used (default or Indian Neural preset selected)
+      const isNeuralIndian =
+        !selectedVoiceName ||
+        selectedVoiceName === 'en-IN-NeerjaExpressiveNeural' ||
+        selectedVoiceName === 'en-IN-NeerjaNeural' ||
+        selectedVoiceName === 'hi-IN-SwaraNeural' ||
+        selectedVoiceName === 'en-IN-PrabhatNeural' ||
+        selectedVoiceName === 'hi-IN-MadhurNeural';
+
+      if (isNeuralIndian && typeof window !== 'undefined') {
+        const neuralVoice = selectedVoiceName || 'en-IN-NeerjaExpressiveNeural';
+        try {
+          const apiBase = process.env.NEXT_PUBLIC_BACKEND_URL || '';
+          const res = await fetch(`${apiBase}/api/tts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: cleanSpokenText,
+              voice: neuralVoice,
+            }),
+          });
+
+          if (res.ok) {
+            const blob = await res.blob();
+            const audioUrl = URL.createObjectURL(blob);
+            const audio = new Audio(audioUrl);
+            currentAudioRef.current = audio;
+
+            audio.onplay = () => {
+              isSpeakingRef.current = true;
+              setState('speaking');
+            };
+
+            audio.onended = () => {
+              URL.revokeObjectURL(audioUrl);
+              currentAudioRef.current = null;
+              isSpeakingRef.current = false;
+              if (isCallActiveRef.current) {
+                setState('listening');
+                audioCooldownTimerRef.current = setTimeout(() => {
+                  if (isCallActiveRef.current && !isSpeakingRef.current && stateRef.current === 'listening') {
+                    startRecognitionSafe();
+                  }
+                }, 350);
+              }
+              if (onEndCallback) onEndCallback();
+            };
+
+            audio.onerror = (err) => {
+              console.warn('Audio playback error, falling back to Web Speech:', err);
+              URL.revokeObjectURL(audioUrl);
+              currentAudioRef.current = null;
+              speakWithBrowserSpeech(cleanSpokenText, onEndCallback);
+            };
+
+            await audio.play();
+            return;
+          }
+        } catch (fetchErr) {
+          console.warn('Neural Indian TTS network request failed, falling back to Web Speech:', fetchErr);
         }
       }
 
-      if (voiceToUse) {
-        utterance.voice = voiceToUse;
-        utterance.lang = voiceToUse.lang || 'en-US';
-      } else {
-        // Enforce en-US if no voice object so OS does not choose a Hindi voice
-        utterance.lang = 'en-US';
-      }
-
-      // Pitch 1.0 (neutral natural pitch prevents robotic distortion); rate 0.98 for optimal diction
-      utterance.rate = 0.98;
-      utterance.pitch = 1.0;
-
-      activeUtteranceRef.current = utterance;
-      if (typeof window !== 'undefined') {
-        (window as any)._activeUtterance = utterance;
-      }
-
-      utterance.onstart = () => {
-        isSpeakingRef.current = true;
-        setState('speaking');
-      };
-
-      utterance.onend = () => {
-        isSpeakingRef.current = false;
-        activeUtteranceRef.current = null;
-        if (isCallActiveRef.current) {
-          setState('listening');
-          // 350ms echo absorption cooldown after speech ends before unmuting mic
-          audioCooldownTimerRef.current = setTimeout(() => {
-            if (isCallActiveRef.current && !isSpeakingRef.current && stateRef.current === 'listening') {
-              startRecognitionSafe();
-            }
-          }, 350);
-        }
-        if (onEndCallback) onEndCallback();
-      };
-
-      utterance.onerror = (e) => {
-        console.warn('SpeechSynthesis error:', e);
-        isSpeakingRef.current = false;
-        activeUtteranceRef.current = null;
-        if (isCallActiveRef.current) {
-          setState('listening');
-          startRecognitionSafe();
-        }
-        if (onEndCallback) onEndCallback();
-      };
-
-      try {
-        synthRef.current.speak(utterance);
-      } catch (err) {
-        console.warn('SpeechSynthesis speak failed:', err);
-        if (onEndCallback) onEndCallback();
-      }
+      // Fallback: Browser Web Speech API
+      speakWithBrowserSpeech(cleanSpokenText, onEndCallback);
     },
-    [selectedVoice, startRecognitionSafe, stopRecognitionSafe]
+    [selectedVoice, selectedVoiceName, startRecognitionSafe, stopRecognitionSafe]
   );
 
   // Barge-in / Interruption handling: stops agent speaking immediately if user interrupts
   const interruptAgent = useCallback(() => {
+    if (currentAudioRef.current) {
+      try {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.currentTime = 0;
+      } catch (e) {}
+      currentAudioRef.current = null;
+    }
     if (synthRef.current && (synthRef.current.speaking || isSpeakingRef.current)) {
       synthRef.current.cancel();
-      isSpeakingRef.current = false;
-      activeUtteranceRef.current = null;
+    }
+    isSpeakingRef.current = false;
+    activeUtteranceRef.current = null;
+    if (isCallActiveRef.current) {
       setState('listening');
       startRecognitionSafe();
       console.log('⚡ Barge-in: Agent speech interrupted by user');
@@ -715,8 +767,8 @@ export function useVoiceAgent({
 
     const firstName = customerName ? customerName.split(' ')[0] : '';
     const greetingText = firstName
-      ? `Namaste ${firstName}! I am Aria from Aura Skincare. How can I help you today?`
-      : "Namaste! I am Aria from Aura Skincare. How can I help you today?";
+      ? `Namaste ${firstName}! Welcome to Aura Skincare. I am Aria, how can I assist you with your orders and skincare today?`
+      : "Namaste! Welcome to Aura Skincare. I am Aria, how can I assist you with your orders and skincare today?";
     const initialMsg: TranscriptMessage = {
       id: `agent-welcome-${Date.now()}`,
       sender: 'agent',
@@ -746,6 +798,14 @@ export function useVoiceAgent({
     if (audioCooldownTimerRef.current) {
       clearTimeout(audioCooldownTimerRef.current);
       audioCooldownTimerRef.current = null;
+    }
+
+    if (currentAudioRef.current) {
+      try {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.currentTime = 0;
+      } catch (e) {}
+      currentAudioRef.current = null;
     }
 
     try {
